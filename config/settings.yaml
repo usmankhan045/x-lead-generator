@@ -1,0 +1,47 @@
+# Pipeline settings. Models are Groq free tier ONLY (per-model quotas are separate,
+# so splitting roles across models multiplies free capacity).
+
+scraper:
+  provider: kaito                      # kaito | apidojo  (swap = this line only)
+  providers:
+    kaito:
+      actor_id: kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest
+    apidojo:
+      actor_id: apidojo/tweet-scraper
+  queries_per_run: 6                   # rotated deterministically by run number
+  max_items_per_query: 40
+  max_total_items_per_run: 250         # cost guard — also set max-cost-per-run in Apify console
+  freshness_hours: 24                  # HARD RULE: nothing older is ever processed
+
+prefilter:
+  min_followers: 25
+  max_followers: 100000                # >100k accounts bury replies; not worth delivering
+  min_account_age_days: 90
+  max_posts_per_day: 50
+  max_following_ratio: 3.0             # following > 3x followers = junk signal
+
+scoring:
+  model: openai/gpt-oss-120b           # strongest free reasoning model on Groq
+  fallback_model: llama-3.3-70b-versatile
+  deliver_threshold: 70
+  borderline_threshold: 50
+
+drafting:
+  model: moonshotai/kimi-k2-instruct   # most natural prose on Groq free tier
+  fallback_model: meta-llama/llama-4-maverick-17b-128e-instruct
+  checker_model: llama-3.3-70b-versatile  # different family = better AI-tell detection
+  recent_style_exclusion: 5            # styles used in last N delivered leads are excluded
+  max_reply_chars: 280
+
+markets:
+  # ISO country codes considered target markets. Confirmed outside => dropped.
+  # Unknown/ambiguous location => delivered with lowered confidence + flag.
+  # NOTE: quotes are required — YAML parses bare NO (Norway) as the boolean false.
+  target: ["US", "CA", "GB", "IE", "AU", "NZ", "DE", "NL", "SE", "NO", "DK", "FI", "CH", "AT", "BE", "FR"]
+
+llm:
+  throttle_seconds: 2.0                # Groq free tier: 30 req/min per model
+  max_retries: 2
+
+discord:
+  max_leads_per_message_burst: 15      # safety cap per run

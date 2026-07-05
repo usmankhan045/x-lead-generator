@@ -1,0 +1,142 @@
+[
+  {
+    "id": "2001",
+    "text": "our ops team spends like 15 hours a week copy pasting order data from emails into the CRM by hand. there has to be a better way to do this in 2026",
+    "url": "https://x.com/foundername/status/2001",
+    "_age_hours": 3,
+    "_query_id": "auto-manual-pain",
+    "_niche": "automation",
+    "author": {
+      "id": "u2001", "userName": "foundername", "name": "Dana Reeves",
+      "description": "Founder & CEO @ LogiFlow. building the ops layer for SMB logistics. Austin, TX",
+      "location": "Austin, TX", "followers": 4200, "following": 900,
+      "_account_age_days": 1200, "statusesCount": 3400, "isVerified": false
+    }
+  },
+  {
+    "id": "2002",
+    "text": "looking for a developer who can build me a simple booking + payments app for my coaching business. quotes from agencies have been insane. who can help?",
+    "url": "https://x.com/coachhannah/status/2002",
+    "_age_hours": 6,
+    "_query_id": "dev-hire-ask",
+    "_niche": "app-web",
+    "author": {
+      "id": "u2002", "userName": "coachhannah", "name": "Hannah Willis",
+      "description": "business coach for female founders | helping you scale to 6 figures | London",
+      "location": "London, UK", "followers": 9100, "following": 1200,
+      "_account_age_days": 1500, "statusesCount": 5000, "isVerified": true
+    }
+  },
+  {
+    "id": "2003",
+    "text": "how much would it cost to build an MVP for a marketplace app? react native probably. trying to budget before i talk to anyone",
+    "url": "https://x.com/mikebuilds/status/2003",
+    "_age_hours": 10,
+    "_query_id": "app-idea-mvp",
+    "_niche": "app-web",
+    "author": {
+      "id": "u2003", "userName": "mikebuilds", "name": "Mike Torres",
+      "description": "solo founder. ex-retail. building something in home services. Toronto",
+      "location": "Toronto, Canada", "followers": 780, "following": 640,
+      "_account_age_days": 700, "statusesCount": 1100, "isVerified": false
+    }
+  },
+  {
+    "id": "2004",
+    "text": "is there an app that can auto sync my shopify inventory across 3 sales channels? doing it manually every morning is killing me",
+    "url": "https://x.com/shopmaria/status/2004",
+    "_age_hours": 8,
+    "_query_id": "shopify-app-ask",
+    "_niche": "ecommerce",
+    "author": {
+      "id": "u2004", "userName": "shopmaria", "name": "Maria K",
+      "description": "owner @ NorthGoods. ecommerce, home + garden. shipping worldwide from Manchester",
+      "location": "Manchester", "followers": 2300, "following": 810,
+      "_account_age_days": 950, "statusesCount": 2200, "isVerified": false
+    }
+  },
+  {
+    "id": "2005",
+    "text": "spend hours every week manually sending onboarding emails and setting up folders for each new client. feels like this should be automated by now",
+    "url": "https://x.com/coachdev/status/2005",
+    "_age_hours": 14,
+    "_query_id": "coach-ops-pain",
+    "_niche": "coaching",
+    "author": {
+      "id": "u2005", "userName": "coachdev", "name": "Priya Nair",
+      "description": "leadership coach. ex-google. Bangalore, India",
+      "location": "Bangalore, India", "followers": 6100, "following": 700,
+      "_account_age_days": 1300, "statusesCount": 4100, "isVerified": false
+    }
+  },
+  {
+    "id": "2006",
+    "text": "kinda tired of manually updating my spreadsheets every day but idk maybe its fine",
+    "url": "https://x.com/randomsmb/status/2006",
+    "_age_hours": 20,
+    "_query_id": "crm-data-entry",
+    "_niche": "automation",
+    "author": {
+      "id": "u2006", "userName": "randomsmb", "name": "Sam P",
+      "description": "small shop owner, coffee + retail. Portland OR",
+      "location": "Portland, OR", "followers": 340, "following": 300,
+      "_account_age_days": 500, "statusesCount": 900, "isVerified": false
+    }
+  },
+  {
+    "id": "2007",
+    "text": "our sales team wastes so much time manually scraping leads and pasting into the CRM. 15 hrs a week gone. need to automate this asap",
+    "url": "https://x.com/staletweet/status/2007",
+    "_age_hours": 30,
+    "_query_id": "auto-manual-pain",
+    "_niche": "automation",
+    "author": {
+      "id": "u2007", "userName": "staletweet", "name": "Old Post",
+      "description": "founder @ somebiz. New York",
+      "location": "New York, NY", "followers": 5000, "following": 800,
+      "_account_age_days": 1000, "statusesCount": 3000, "isVerified": false
+    }
+  },
+  {
+    "id": "2008",
+    "text": "join my crypto airdrop giveaway!! tag a friend and retweet to win 1 BTC 🚀🚀 link in bio",
+    "url": "https://x.com/spambot99/status/2008",
+    "_age_hours": 2,
+    "_query_id": "auto-tool-ask",
+    "_niche": "automation",
+    "author": {
+      "id": "u2008", "userName": "spambot99", "name": "Crypto King",
+      "description": "🚀 crypto signals | forex | DM for promo | t.me/cryptoking",
+      "location": "", "followers": 200, "following": 4000,
+      "_account_age_days": 40, "statusesCount": 9000, "isVerified": false
+    }
+  },
+  {
+    "id": "2009",
+    "text": "we build websites for agencies, DM us for a free audit and book a call today!",
+    "url": "https://x.com/competitoragency/status/2009",
+    "_age_hours": 5,
+    "_query_id": "website-need",
+    "_niche": "app-web",
+    "author": {
+      "id": "u2009", "userName": "competitoragency", "name": "PixelPerfect Agency",
+      "description": "we build websites + apps for startups. 200+ projects delivered. book a call!",
+      "location": "Remote", "followers": 3200, "following": 400,
+      "_account_age_days": 800, "statusesCount": 2600, "isVerified": false
+    }
+  },
+  {
+    "id": "2010",
+    "text": "our ops team spends like 15 hours a week copy pasting order data from emails into the CRM by hand. there has to be a better way to do this in 2026",
+    "url": "https://x.com/dupefounder/status/2010",
+    "_age_hours": 4,
+    "_query_id": "auto-manual-pain",
+    "_niche": "automation",
+    "author": {
+      "id": "u2010", "userName": "dupefounder", "name": "Copy Cat",
+      "description": "founder, saas. San Francisco",
+      "location": "San Francisco, CA", "followers": 1500, "following": 500,
+      "_account_age_days": 900, "statusesCount": 1800, "isVerified": false
+    }
+  }
+]

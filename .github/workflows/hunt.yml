@@ -1,0 +1,49 @@
+name: hunt
+
+# Twice daily. Times tuned to catch US tweets from Pakistan (PKT = UTC+5):
+#   05:00 UTC = 10:00 PKT (catches US evening)
+#   14:00 UTC = 19:00 PKT (catches US morning)
+on:
+  schedule:
+    - cron: "0 5 * * *"
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run without DB writes (posts to test webhook)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: x-lead-hunt
+  cancel-in-progress: false
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Run lead hunt
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_DIGEST_WEBHOOK_URL: ${{ secrets.DISCORD_DIGEST_WEBHOOK_URL }}
+          DISCORD_TEST_WEBHOOK_URL: ${{ secrets.DISCORD_TEST_WEBHOOK_URL }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python src/main.py --dry-run
+          else
+            python src/main.py
+          fi

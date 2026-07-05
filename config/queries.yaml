@@ -1,0 +1,124 @@
+# Query bank — X advanced-search queries for pain-point mining.
+# Rules (research-backed, Jul 2026):
+#   - quoted intent phrases in OR groups + structural filters + 3-5 word negatives
+#   - keep each query <= ~15 operators / ~400 chars (X silently drops operators past ~22)
+#   - NO min_faves: the best lead is a fresh tweet nobody answered yet
+#   - since-window is appended at runtime by scraper.py (last run time, capped at 24h)
+# Validate any new query by pasting it into X web search first: >= 20-30% relevance
+# before enabling. Track per-query hit rates in x_runs.query_stats; rewrite losers.
+
+queries:
+  # ── Automation / manual-work pain ─────────────────────────────────────────
+  - id: auto-manual-pain
+    niche: automation
+    enabled: true
+    query: >-
+      ("sick of manually" OR "tired of manually" OR "wasting hours" OR "waste so much time")
+      (business OR clients OR orders OR invoices)
+      -filter:retweets -filter:replies -filter:links lang:en -hiring -giveaway
+    notes: vents about manual drudgery, anchored to business context words
+
+  - id: auto-tool-ask
+    niche: automation
+    enabled: true
+    query: >-
+      ("is there a tool that" OR "is there an app that" OR "is there a way to automate"
+      OR "what do you guys use for" OR "how do you guys handle")
+      -filter:retweets -filter:replies lang:en -crypto -web3 -"dm me"
+    notes: direct solution-seeking questions; highest intent in the automation niche
+
+  - id: auto-better-way
+    niche: automation
+    enabled: true
+    query: >-
+      ("need to automate" OR "want to automate" OR "there has to be a better way"
+      OR "still doing this manually")
+      -filter:retweets -filter:replies -filter:links lang:en -course -webinar -hiring
+    notes: automation-doubt tweets; Gut Check Validation style usually fits
+
+  # ── App / website build requests ──────────────────────────────────────────
+  - id: dev-hire-ask
+    niche: app-web
+    enabled: true
+    query: >-
+      ("looking for a developer" OR "need a developer to build" OR "need someone to build"
+      OR "can anyone build" OR "who can build me")
+      -filter:retweets -filter:replies lang:en -"open to work" -resume -"job alert"
+    notes: 'no -hiring here on purpose: real buyers say "hiring a dev to build my app"'
+
+  - id: website-need
+    niche: app-web
+    enabled: true
+    query: >-
+      ("need a website" OR "need a new website" OR "build me a website"
+      OR "website for my business" OR "redesign my website")
+      -filter:retweets -filter:replies lang:en -"link in bio" -wix -"free guide"
+    notes: website asks; watch for competitor agencies replying — reply fast
+
+  - id: app-idea-mvp
+    niche: app-web
+    enabled: true
+    query: >-
+      ("have an app idea" OR "app idea but" OR "build my MVP" OR "get an MVP built"
+      OR "how much would it cost to build")
+      -filter:retweets -filter:replies lang:en -"we build" -agency -course
+    notes: cost-ask heavy; Cost Reality and Simplifier styles fit
+
+  - id: dev-recommend
+    niche: app-web
+    enabled: true
+    query: >-
+      ("recommendations for a developer" OR "recommend a developer" OR "recommend an agency"
+      OR "know a good developer" OR "good dev shop")
+      -filter:retweets -filter:replies lang:en -"dm me" -"we can help"
+    notes: warm referral-seeking; softest entry, never pitch directly
+
+  # ── E-commerce / Shopify ops ──────────────────────────────────────────────
+  - id: shopify-ops-pain
+    niche: ecommerce
+    enabled: true
+    query: >-
+      (shopify OR "my store" OR "my ecommerce")
+      ("spending hours" OR "so time consuming" OR "manually updating"
+      OR "inventory is a nightmare" OR "syncing inventory")
+      -filter:retweets -filter:replies lang:en -dropshipping -course -guru
+    notes: store-owner ops pain; noisier niche, trust the LLM filter
+
+  - id: shopify-app-ask
+    niche: ecommerce
+    enabled: true
+    query: >-
+      ("shopify app" OR "shopify store")
+      ("is there an app" OR "any app that" OR "app that can" OR "recommend an app for")
+      -filter:retweets -filter:replies lang:en -"link in bio" -giveaway -discount
+    notes: tool-rec asks from merchants; Insider Detail style shines here
+
+  # ── Coaches / real estate ops ─────────────────────────────────────────────
+  - id: coach-ops-pain
+    niche: coaching
+    enabled: true
+    query: >-
+      (coach OR coaching OR "my clients")
+      ("onboarding clients" OR "chasing invoices" OR "scheduling is a nightmare"
+      OR "spend hours every week" OR "manually sending")
+      -filter:retweets -filter:replies lang:en -"free masterclass" -webinar -"dm me"
+    notes: coach ops pain; buyers with money, low technical vocabulary
+
+  - id: realtor-ops-pain
+    niche: real-estate
+    enabled: true
+    query: >-
+      (realtor OR "real estate agent" OR brokerage OR "my listings")
+      ("follow up with leads" OR "CRM is a mess" OR "hate data entry"
+      OR "manually entering" OR "drowning in paperwork")
+      -filter:retweets -filter:replies lang:en -"just listed" -"open house"
+    notes: realtor follow-up/CRM pain; Second-Order Pain style fits (leads going cold)
+
+  - id: crm-data-entry
+    niche: automation
+    enabled: true
+    query: >-
+      ("manual data entry" OR "data entry is killing" OR "copy pasting between"
+      OR "spreadsheet hell" OR "updating spreadsheets all day" OR "my CRM is a mess")
+      -filter:retweets -filter:replies -filter:links lang:en -hiring -remote -"job opening"
+    notes: cross-niche CRM/data-entry drudgery; -remote kills job-listing noise

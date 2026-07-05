@@ -1,0 +1,7 @@
+apify-client>=1.8.0
+groq>=0.13.0
+supabase>=2.10.0
+PyYAML>=6.0
+python-dotenv>=1.0.0
+python-dateutil>=2.9.0
+requests>=2.32.0
