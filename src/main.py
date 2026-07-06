@@ -84,12 +84,23 @@ def run_pipeline(
     last_run = db.last_run_started_at()
     db.create_run(run_id)
 
-    # 1-2. SCRAPE (or fixture)
+    # 1-2. GATHER from every enabled source (all feed the same pipeline)
     if fixture:
         tweets = load_fixture(fixture, query_niche)
         est_cost = 0.0
     else:
-        tweets, est_cost = scraper.scrape(settings, queries, last_run, env("APIFY_TOKEN", required=True))
+        tweets, est_cost = [], 0.0
+        srcs = settings.get("sources", {})
+        if srcs.get("x", {}).get("enabled", True):
+            xt, xc = scraper.scrape(settings, queries, last_run, env("APIFY_TOKEN", required=True))
+            tweets += xt
+            est_cost += xc
+        if srcs.get("hackernews", {}).get("enabled", False):
+            import hn
+
+            ht, hc = hn.fetch_leads(settings, last_run)
+            tweets += ht
+            est_cost += hc
     scraped = len(tweets)
 
     # 3. DEDUP — never scan twice (DB is source of truth)
@@ -111,8 +122,13 @@ def run_pipeline(
 
     deliver_th = settings["scoring"]["deliver_threshold"]
     border_th = settings["scoring"]["borderline_threshold"]
-    to_deliver = [s for s in scored if s["_score"]["score"] >= deliver_th]
-    review = [s for s in scored if border_th <= s["_score"]["score"] < deliver_th]
+    to_deliver, review = [], []
+    for lead in scored:
+        t = _tier(lead, deliver_th, border_th)
+        if t == "deliver":
+            to_deliver.append(lead)
+        elif t == "review":
+            review.append(lead)
 
     # 7. DRAFT — both delivered AND review-tier leads get drafts (review = your judgment).
     styles = drafter.parse_styles(load_prompt("comment_styles.md"))
@@ -124,12 +140,13 @@ def run_pipeline(
     for s in db.recent_delivered_styles(window):
         recent.append([s])
     # Draft highest-score first so style rotation favours the best leads.
+    deliver_ids = {l["tweet_id"] for l in to_deliver}
     for lead in sorted(to_deliver + review, key=lambda l: l["_score"]["score"], reverse=True):
         excluded = {s for group in recent for s in group}
         drafts = drafter.draft_for_lead(lead, settings, styles, excluded, proof)
         lead.update(drafts)
         recent.append(drafts["styles_used"])
-        status = "delivered" if lead["_score"]["score"] >= deliver_th else "borderline"
+        status = "delivered" if lead["tweet_id"] in deliver_ids else "borderline"
         db.insert_lead(_lead_row(lead, run_id, status))
 
     # 8. DELIVER + digest
@@ -162,6 +179,33 @@ def run_pipeline(
 
     log.info("run %s done: %s", run_id, {k: stats[k] for k in ("tweets_scraped", "delivered", "borderline")})
     return stats
+
+
+def _tier(lead: dict, deliver_th: int, border_th: int) -> str:
+    """Decide deliver / review / drop for a scored lead.
+
+    X leads: use the composite score vs thresholds.
+    HN 'SEEKING FREELANCER' leads are pre-qualified buyers (a company hiring now), so their
+    composite score is noisy (job posts lack 'pain/urgency' language and models disagree).
+    Gate them on the STABLE signals instead — service fit + in-market — so a real Swiss AI
+    role doesn't get dropped just because one model scored its "pain" low this run.
+    """
+    s = lead["_score"]
+    if lead.get("source") == "hn":
+        if s["market"]["in_target"] is False:  # confirmed outside target -> drop
+            return "drop"
+        fit = s["subscores"].get("fit", 0)
+        if fit >= 12:
+            return "deliver"
+        if fit >= 8:
+            return "review"
+        return "drop"
+    score = s["score"]
+    if score >= deliver_th:
+        return "deliver"
+    if score >= border_th:
+        return "review"
+    return "drop"
 
 
 def _lead_row(lead: dict, run_id: str, status: str) -> dict:

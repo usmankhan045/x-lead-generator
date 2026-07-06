@@ -57,30 +57,44 @@ def build_lead_embed(lead: dict, index: int, total: int, tier: str = "LEAD") -> 
     loc = market.get("country") or "?"
     loc_flag = " ⚠️ location unknown" if market.get("in_target") is None else ""
     url = lead.get("url", "")
+    is_hn = lead.get("source") == "hn"
 
-    # Description: everything ABOUT the lead (not the answers), clearly bounded.
+    # Author line: HN posts have no follower graph, so show source + handle instead.
+    if is_hn:
+        author_line = f"🗞️ **Hacker News** · by {lead.get('handle', '')} · {loc}{loc_flag}"
+    else:
+        author_line = f"👤 **@{lead.get('handle', '')}** · {lead.get('followers', 0):,} followers · {loc}{loc_flag}"
+
     desc = (
         f"**Score {score['score']}/100 · {dot} {conf}% confidence** · {lead.get('niche', '')} · {age_str}\n"
-        f"👤 **@{lead.get('handle', '')}** · {lead.get('followers', 0):,} followers · {loc}{loc_flag}\n\n"
+        f"{author_line}\n\n"
         f"💬 **Their post:**\n>>> {_trunc(lead['text'], 600)}"
     )
     reason = score.get("reasoning", "")
     footer_flags = [f"{s}: {', '.join(iss)}" for s, iss in (lead.get("draft_issues") or {}).items() if iss]
 
-    # Fields: ONLY the answers, each clearly labeled and in its own copy-paste block.
     styles = lead.get("styles_used") or []
-    fields = [{"name": "🔗 Open the tweet", "value": url or "—", "inline": False}]
+    open_label = "🔗 Open the HN post" if is_hn else "🔗 Open the tweet"
+    fields = [{"name": open_label, "value": url or "—", "inline": False}]
     if reason:
         fields.append({"name": "🧠 Why it's a lead", "value": _trunc(reason, 300), "inline": False})
-    if lead.get("reply_draft_a"):
-        fields.append({"name": f"✍️ REPLY — option A ({styles[0] if styles else '—'})",
-                       "value": f"```{_trunc(lead['reply_draft_a'], 480)}```", "inline": False})
-    if lead.get("reply_draft_b"):
-        fields.append({"name": f"✍️ REPLY — option B ({styles[1] if len(styles) > 1 else '—'})",
-                       "value": f"```{_trunc(lead['reply_draft_b'], 480)}```", "inline": False})
-    if lead.get("dm_draft"):
-        fields.append({"name": "📩 DM — send ONLY after they reply to you",
-                       "value": f"```{_trunc(lead['dm_draft'], 480)}```", "inline": False})
+
+    if is_hn:
+        # HN lead: one cold-email draft + the contact line.
+        if lead.get("reply_draft_a"):
+            fields.append({"name": "📧 COLD EMAIL — draft", "value": f"```{_trunc(lead['reply_draft_a'], 900)}```", "inline": False})
+        if lead.get("contact_email"):
+            fields.append({"name": "✉️ Email them at", "value": lead["contact_email"], "inline": False})
+    else:
+        if lead.get("reply_draft_a"):
+            fields.append({"name": f"✍️ REPLY — option A ({styles[0] if styles else '—'})",
+                           "value": f"```{_trunc(lead['reply_draft_a'], 480)}```", "inline": False})
+        if lead.get("reply_draft_b"):
+            fields.append({"name": f"✍️ REPLY — option B ({styles[1] if len(styles) > 1 else '—'})",
+                           "value": f"```{_trunc(lead['reply_draft_b'], 480)}```", "inline": False})
+        if lead.get("dm_draft"):
+            fields.append({"name": "📩 DM — send ONLY after they reply to you",
+                           "value": f"```{_trunc(lead['dm_draft'], 480)}```", "inline": False})
 
     footer = f"{label.lower()} {index}/{total} · query: {lead.get('query_id', '?')}"
     if footer_flags:

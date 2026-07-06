@@ -75,16 +75,24 @@ def _posts_per_day(tweet: dict) -> float | None:
     return statuses / age
 
 
+def _freshness_hours(tweet: dict, settings: dict) -> int:
+    """Per-source freshness — a HN hiring post stays valid far longer than a tweet."""
+    src = tweet.get("source", "x")
+    if src == "hn":
+        return settings.get("sources", {}).get("hackernews", {}).get("freshness_hours", 336)
+    return settings["scraper"]["freshness_hours"]
+
+
 def check(tweet: dict, settings: dict, seen_ids: set[str], run_text_seen: set[str]) -> None:
     """Raise Dropped(reason) if the tweet should be filtered out. Otherwise return None."""
     pf = settings["prefilter"]
-    freshness_hours = settings["scraper"]["freshness_hours"]
+    source = tweet.get("source", "x")
 
     # HARD RULE 1 — freshness. If created_at is unknown we cannot prove it's fresh -> drop.
     created = tweet.get("created_at")
     if not created:
         raise Dropped("no_timestamp")
-    if now_utc() - created > timedelta(hours=freshness_hours):
+    if now_utc() - created > timedelta(hours=_freshness_hours(tweet, settings)):
         raise Dropped("too_old")
 
     # HARD RULE 2 — never scan twice.
@@ -96,11 +104,17 @@ def check(tweet: dict, settings: dict, seen_ids: set[str], run_text_seen: set[st
     if norm_text in run_text_seen:
         raise Dropped("duplicate_text")
 
-    # Negative keywords in text or bio.
+    # Negative keywords in text or bio (spam/crypto) — applies to every source.
     haystack = f"{tweet['text']} {tweet.get('bio', '')}"
     for pat in _NEG_PATTERNS:
         if pat.search(haystack):
             raise Dropped(f"neg_kw:{pat.pattern}")
+
+    # The remaining gates are Twitter-author heuristics (bio, followers, account age,
+    # post frequency). They don't apply to non-Twitter sources like HN job posts, where
+    # there's no follower graph and the buyer signal is in the post text itself.
+    if source != "x":
+        return
 
     bio_l = (tweet.get("bio") or "").lower()
     if any(h in bio_l for h in BIO_SPAM_HINTS):

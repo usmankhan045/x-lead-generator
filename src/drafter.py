@@ -192,9 +192,40 @@ def _write_dm(tweet: dict, score: dict, proof: str, settings: dict) -> str:
 
 # ── public API ────────────────────────────────────────────────────────────────
 
+_EMAIL_SYSTEM = "You write short, specific, human cold emails. You output strict JSON."
+
+
+def _draft_email(lead: dict, proof: str, settings: dict) -> dict[str, Any]:
+    """HN 'SEEKING FREELANCER' leads are worked by email, not an X reply."""
+    persona = load_prompt("email_persona.md")
+    user = (
+        f"{persona}\n\nTHEIR HACKER NEWS POST:\n{lead['text'][:1200]}\n\n"
+        f"PROOF LIBRARY (only source of any experience claim):\n{proof}"
+    )
+    try:
+        out = llm.call_json(_EMAIL_SYSTEM, user, model=settings["drafting"]["model"],
+                            fallback_model=settings["drafting"].get("fallback_model"), temperature=0.6)
+        subject = clean_text(out.get("subject", ""))
+        body = out.get("body", "").replace("—", "-").strip()
+        email = f"Subject: {subject}\n\n{body}" if subject else body
+    except Exception as e:  # noqa: BLE001
+        log.warning("email draft failed: %s", e)
+        email = ""
+    return {
+        "styles_used": ["Cold Email"],
+        "reply_draft_a": email,
+        "reply_draft_b": "",
+        "draft_issues": {},
+        "dm_draft": f"contact: {lead.get('contact_email', '')}" if lead.get("contact_email") else "",
+    }
+
+
 def draft_for_lead(
     tweet: dict, settings: dict, styles: list[Style], excluded: set[str], proof: str
 ) -> dict[str, Any]:
+    if tweet.get("source") == "hn":
+        return _draft_email(tweet, proof, settings)
+
     score = tweet["_score"]
     max_chars = settings["drafting"]["max_reply_chars"]
     chosen = select_styles(styles, score["tweet_type"], excluded, seed=tweet["tweet_id"])

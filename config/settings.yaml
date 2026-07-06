@@ -1,6 +1,17 @@
 # Pipeline settings. Models are Groq free tier ONLY (per-model quotas are separate,
 # so splitting roles across models multiplies free capacity).
 
+# Lead sources. Each feeds the SAME scoring -> draft -> Discord pipeline.
+sources:
+  x:
+    enabled: true
+  hackernews:
+    enabled: true
+    # HN "Ask HN: Freelancer? Seeking freelancer?" monthly thread — companies posting
+    # "SEEKING FREELANCER, email us". Read-only free API, outreach is cold email.
+    freshness_hours: 336               # 14 days — a hiring post stays valid far longer than a tweet
+    max_items: 40
+
 scraper:
   provider: kaito                      # kaito | apidojo  (swap = this line only)
   providers:

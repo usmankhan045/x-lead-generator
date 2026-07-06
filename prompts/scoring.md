@@ -23,6 +23,13 @@ TWEET_TYPE (exactly one): vent | question-ask | hire-ask | cost-ask | tool-rec-a
 
 MARKET: infer country from the location field first (parse "Austin TX"->US, "Manchester"->GB). Weak hints (timezone, phrasing) support but never override an explicit location. Never guess country from name alone; if unreliable, country=null.
 
+NON-TWITTER SOURCES (e.g. a Hacker News "SEEKING FREELANCER" job post — empty bio/followers): these are companies ACTIVELY PAYING to hire, so they are high-intent buyers by definition. Judge from the POST TEXT itself and score generously when the work fits:
+  - AUTHORITY 13-18: a company posting a paid project is a decision-maker with budget (no bio needed).
+  - PAIN = how concrete/relevant the project is: a clearly-defined project they will pay for = 18-26 (their "pain" is implicit — they've decided to spend money).
+  - URGENCY 10-15: they are hiring RIGHT NOW; that IS urgency. Do not require emotional complaint language.
+  - MARKET: parse country from the post ("SWITZERLAND", "Remote", "Location: Berlin", "SF-based").
+  - Do NOT apply the "recruiter/HIRING vacancy" red flag here — hiring a freelancer/contractor is exactly the buyer we want. Only red-flag if the role is clearly unrelated to Usman's services (e.g. hiring a sales rep or a designer only).
+
 Output STRICT JSON only:
 {"score":<0-100>,"subscores":{"pain":<n>,"authority":<n>,"fit":<n>,"urgency":<n>,"market":<n>},"red_flags":[{"flag":"<name>","penalty":<n>}],"confidence":<0-100>,"confidence_reasons":["<short>"],"tweet_type":"<one>","niche":"<automation|app-web|ecommerce|coaching|real-estate|other>","market":{"country":"<ISO2 or null>","in_target":<true|false|null>,"basis":"<what you used>"},"reasoning":"<one sentence>"}
 

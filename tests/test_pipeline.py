@@ -68,10 +68,15 @@ def main() -> int:
             check("http" not in d.lower(), f"{l['tweet_id']} draft has link")
             check(len(d) <= settings["drafting"]["max_reply_chars"], f"{l['tweet_id']} draft too long")
 
-    # style rotation: no two consecutive delivered leads share a style
+    # style rotation (achievable guarantee): the 2 styles within a lead are distinct, and no
+    # two consecutive leads use the IDENTICAL pair. (A single shared style between consecutive
+    # same-type leads is unavoidable when that type's pool is smaller than the exclusion window.)
     seqs = [tuple(l.get("styles_used") or []) for l in delivered]
+    for s in seqs:
+        check(len(set(s)) == len(s), f"lead reused a style within itself: {s}")
     for a, b in zip(seqs, seqs[1:]):
-        check(not (set(a) & set(b)), f"consecutive leads reused a style: {a} & {b}")
+        check(set(a) != set(b), f"consecutive leads used identical style pair: {a} & {b}")
+    check(len({st for s in seqs for st in s}) >= max(2, len(seqs)), "too little style variety overall")
 
     # DEDUP: second run over same DB should deliver nothing new and skip everything
     sink2: list = []

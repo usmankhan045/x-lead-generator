@@ -106,4 +106,6 @@ def call_json(system: str, user: str, model: str, fallback_model=None, temperatu
         return {"pass": True, "issues": [], "rewrite": ""}
     if "follow-up dm" in s:
         return {"dm": "saw your tweet about the manual re-entry. happy to sketch how id wire it if useful, want me to send it over?"}
+    if "cold emails" in s:
+        return {"subject": "re: your seeking freelancer post", "body": "saw you need the automation built. i've shipped this exact kind of flow. happy to send a short approach outline, want it?"}
     return {}

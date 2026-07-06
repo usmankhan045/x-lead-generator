@@ -14,9 +14,13 @@ account) and hands you drafts. That is the only durable architecture.
 
 ```
 GitHub Actions (cron 2x/day)
-  scrape (Apify)  →  pre-filter (free rules)  →  mark seen  →  LLM score + confidence
-     →  draft 2 styled replies + DM  →  Discord embeds  →  log to Supabase
+  gather sources  →  pre-filter (free rules)  →  mark seen  →  LLM score + confidence
+     →  draft outreach  →  Discord cards  →  log to Supabase
 ```
+
+**Sources** (both feed the same scoring/draft/Discord pipeline, toggle in `config/settings.yaml`):
+- **X / Twitter** (via Apify) — business pain-point tweets → 2 styled reply drafts + a DM. You reply manually.
+- **Hacker News** "Seeking Freelancer" thread (free API, no key) — companies posting paid freelance roles → a **cold email draft** + their contact email. You email them (nothing to get banned).
 
 - **Scraper** (`src/scraper.py`) — Apify actor, configurable, actor-agnostic normalizer.
 - **Pre-filter** (`src/prefilter.py`) — drops >24h-old, already-seen, spam, thin/junk accounts. Free, no LLM.
