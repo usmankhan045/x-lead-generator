@@ -133,10 +133,18 @@ def scrape(
     apify_token: str,
     client_factory=None,
 ) -> tuple[list[dict[str, Any]], float]:
-    """Run the configured actor. Returns (normalized deduped tweets, actual run cost USD)."""
-    provider = settings["scraper"]["provider"]
+    """Run the configured actor, with a retry if the yield is suspiciously low.
+
+    The kaito actor intermittently errors mid-run and returns almost nothing even when
+    matches exist (seen live: 1 tweet one minute, 57 the next). When a run comes back below
+    `retry_if_below`, we run it once more and merge — cheap (pay-per-result) insurance against
+    a whole cycle being wasted on a flaky scrape. Returns (deduped tweets, total cost USD).
+    """
+    scr = settings["scraper"]
+    provider = scr["provider"]
     actor_id, actor_input, term_map = build_actor_input(provider, queries, settings, last_run)
     query_niche = {q["id"]: q.get("niche") for q in queries}
+    idx_map = {i: (q["id"], q.get("niche")) for i, q in enumerate(queries)}
 
     if client_factory is None:
         from apify_client import ApifyClient  # imported lazily so fixture runs need no dep
@@ -145,20 +153,28 @@ def scrape(
     else:
         client = client_factory(apify_token)
 
-    log.info("running actor %s with %d queries (maxItems=%s)", actor_id, len(queries), actor_input["maxItems"])
-    # apify-client v3 returns a Pydantic Run object (attributes, not dict keys).
-    run = client.actor(actor_id).call(run_input=actor_input)
-    if run is None:
-        log.warning("actor run returned None (failed/aborted)")
-        return [], 0.0
-    dataset_id = run.default_dataset_id
-    cost = float(getattr(run, "usage_total_usd", 0.0) or 0.0)
+    threshold = scr.get("retry_if_below", 5)
+    max_attempts = scr.get("max_scrape_attempts", 2)
+    merged: dict[str, dict] = {}
+    total_cost = 0.0
 
-    # The actor tags each item with searchTermIndex -> index into our searchTerms list,
-    # which is built in `queries` order, so index i maps to queries[i].
-    idx_map = {i: (q["id"], q.get("niche")) for i, q in enumerate(queries)}
-    items = client.dataset(dataset_id).iterate_items()
-    return normalize_items(items, idx_map, term_map, query_niche), cost
+    for attempt in range(1, max_attempts + 1):
+        log.info("running actor %s with %d queries (maxItems=%s), attempt %d",
+                 actor_id, len(queries), actor_input["maxItems"], attempt)
+        run = client.actor(actor_id).call(run_input=actor_input)
+        if run is None:
+            log.warning("actor run returned None (failed/aborted)")
+            continue
+        total_cost += float(getattr(run, "usage_total_usd", 0.0) or 0.0)
+        items = client.dataset(run.default_dataset_id).iterate_items()
+        for t in normalize_items(items, idx_map, term_map, query_niche):
+            merged.setdefault(t["tweet_id"], t)  # dedup across attempts
+        if len(merged) >= threshold:
+            break
+        if attempt < max_attempts:
+            log.warning("only %d tweets so far (< %d), retrying scrape", len(merged), threshold)
+
+    return list(merged.values()), round(total_cost, 4)
 
 
 def normalize_items(

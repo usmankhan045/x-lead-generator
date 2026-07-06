@@ -12,6 +12,8 @@ scraper:
   max_items_per_query: 25
   max_total_items_per_run: 120         # cost guard + keeps scoring under Groq free-tier TPM
   freshness_hours: 24                  # HARD RULE: nothing older is ever processed
+  retry_if_below: 5                    # if a scrape yields < this, re-run once (actor flakiness)
+  max_scrape_attempts: 2               # total attempts per run (1 retry)
 
 prefilter:
   min_followers: 25
