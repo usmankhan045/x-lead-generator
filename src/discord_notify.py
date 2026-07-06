@@ -15,19 +15,19 @@ from util import get_logger
 
 log = get_logger("discord")
 
-# Confidence bands -> embed color (green/yellow/red) and label.
+# Confidence bands -> embed color (green/yellow/red), label, and emoji dot.
 _BANDS = [
-    (80, 0x2ECC71, "High"),
-    (55, 0xF1C40F, "Medium"),
-    (0, 0xE74C3C, "Low"),
+    (80, 0x2ECC71, "High", "🟢"),
+    (55, 0xF1C40F, "Medium", "🟡"),
+    (0, 0xE74C3C, "Low", "🔴"),
 ]
 
 
-def _band(confidence: int) -> tuple[int, str]:
-    for threshold, color, label in _BANDS:
+def _band(confidence: int) -> tuple[int, str, str]:
+    for threshold, color, label, emoji in _BANDS:
         if confidence >= threshold:
-            return color, label
-    return 0x95A5A6, "Low"
+            return color, label, emoji
+    return 0x95A5A6, "Low", "🔴"
 
 
 def _trunc(text: str, n: int) -> str:
@@ -35,51 +35,60 @@ def _trunc(text: str, n: int) -> str:
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
-def build_lead_embed(lead: dict) -> dict[str, Any]:
+def build_lead_embed(lead: dict, index: int, total: int) -> dict[str, Any]:
+    """One self-contained card per lead: header, their post + link, then the answers.
+
+    Layout (top to bottom):
+      title  : 🎯 Lead 2/3 · @handle          (clickable -> opens the tweet)
+      desc   : score/confidence · author meta · their tweet (quoted) · open-link · why
+      fields : ✍️ REPLY A, ✍️ REPLY B, 📩 DM   (each a copy-paste code block)
+    """
     score = lead["_score"]
     conf = score["confidence"]
-    color, band = _band(conf)
+    color, band, dot = _band(conf)
     age_h = lead.get("_age_hours")
-    age_str = f"{age_h:.0f}h ago" if isinstance(age_h, (int, float)) and age_h >= 0 else "age unknown"
+    age_str = f"{age_h:.0f}h old" if isinstance(age_h, (int, float)) and age_h >= 0 else "age unknown"
 
     market = score["market"]
     loc = market.get("country") or "?"
-    loc_flag = " ⚠ location unknown" if market.get("in_target") is None else ""
+    loc_flag = " ⚠️ location unknown" if market.get("in_target") is None else ""
+    url = lead.get("url", "")
 
-    fields = [
-        {
-            "name": f"Score {score['score']} · Confidence {conf}% ({band})",
-            "value": _trunc(score.get("reasoning", ""), 300) or "—",
-            "inline": False,
-        },
-        {
-            "name": f"Author · {lead.get('followers', 0):,} followers · {loc}{loc_flag}",
-            "value": _trunc(lead.get("bio") or "(no bio)", 200),
-            "inline": False,
-        },
-    ]
+    # Description: everything ABOUT the lead (not the answers), clearly bounded.
+    desc = (
+        f"**Score {score['score']}/100 · {dot} {conf}% confidence** · {lead.get('niche', '')} · {age_str}\n"
+        f"👤 **@{lead.get('handle', '')}** · {lead.get('followers', 0):,} followers · {loc}{loc_flag}\n\n"
+        f"💬 **Their post:**\n>>> {_trunc(lead['text'], 600)}"
+    )
+    reason = score.get("reasoning", "")
+    footer_flags = [f"{s}: {', '.join(iss)}" for s, iss in (lead.get("draft_issues") or {}).items() if iss]
 
+    # Fields: ONLY the answers, each clearly labeled and in its own copy-paste block.
     styles = lead.get("styles_used") or []
-    a = lead.get("reply_draft_a")
-    b = lead.get("reply_draft_b")
-    if a:
-        fields.append({"name": f"Reply A · {styles[0] if styles else ''}", "value": f"```{_trunc(a, 480)}```", "inline": False})
-    if b:
-        fields.append({"name": f"Reply B · {styles[1] if len(styles) > 1 else ''}", "value": f"```{_trunc(b, 480)}```", "inline": False})
+    fields = [{"name": "🔗 Open the tweet", "value": url or "—", "inline": False}]
+    if reason:
+        fields.append({"name": "🧠 Why it's a lead", "value": _trunc(reason, 300), "inline": False})
+    if lead.get("reply_draft_a"):
+        fields.append({"name": f"✍️ REPLY — option A ({styles[0] if styles else '—'})",
+                       "value": f"```{_trunc(lead['reply_draft_a'], 480)}```", "inline": False})
+    if lead.get("reply_draft_b"):
+        fields.append({"name": f"✍️ REPLY — option B ({styles[1] if len(styles) > 1 else '—'})",
+                       "value": f"```{_trunc(lead['reply_draft_b'], 480)}```", "inline": False})
     if lead.get("dm_draft"):
-        fields.append({"name": "DM (after they reply)", "value": f"```{_trunc(lead['dm_draft'], 480)}```", "inline": False})
+        fields.append({"name": "📩 DM — send ONLY after they reply to you",
+                       "value": f"```{_trunc(lead['dm_draft'], 480)}```", "inline": False})
 
-    flagged = [f"{s}: {', '.join(iss)}" for s, iss in (lead.get("draft_issues") or {}).items() if iss]
-    if flagged:
-        fields.append({"name": "⚠ draft flags", "value": _trunc("; ".join(flagged), 200), "inline": False})
+    footer = f"lead {index}/{total} · query: {lead.get('query_id', '?')}"
+    if footer_flags:
+        footer += " · ⚠️ " + _trunc("; ".join(footer_flags), 120)
 
     return {
-        "title": _trunc(lead["text"], 240),
-        "url": lead.get("url"),
+        "title": f"🎯 Lead {index}/{total} · @{lead.get('handle', '')}",
+        "url": url,
         "color": color,
-        "author": {"name": f"@{lead.get('handle', '')} · {lead.get('niche', '')} · {age_str}"},
+        "description": _trunc(desc, 4000),
         "fields": fields,
-        "footer": {"text": f"query: {lead.get('query_id', '?')}"},
+        "footer": {"text": _trunc(footer, 2040)},
     }
 
 
@@ -100,13 +109,15 @@ def _post(webhook: str, payload: dict, dry_run_sink: list | None) -> None:
 
 
 def deliver_leads(webhook: str, leads: list[dict], dry_run_sink: list | None = None) -> None:
-    """Post one message per lead, oldest first so the freshest lands at the bottom (most visible)."""
+    """Post one self-contained card per lead, oldest first so the freshest lands at the
+    bottom (most visible). Numbered 1..N and separated so leads never blend together."""
     ordered = sorted(leads, key=lambda l: l.get("_age_hours", 0), reverse=True)
-    for lead in ordered:
-        _post(webhook, {"embeds": [build_lead_embed(lead)]}, dry_run_sink)
+    total = len(ordered)
+    for i, lead in enumerate(ordered, start=1):
+        _post(webhook, {"embeds": [build_lead_embed(lead, i, total)]}, dry_run_sink)
         if dry_run_sink is None:
             time.sleep(0.6)  # stay well under Discord's ~5 req/2s webhook limit
-    log.info("delivered %d leads", len(ordered))
+    log.info("delivered %d leads", total)
 
 
 def deliver_digest(
