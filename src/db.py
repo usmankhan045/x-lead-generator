@@ -67,6 +67,14 @@ class SupabaseDB:
     def __init__(self, url: str, key: str) -> None:
         from supabase import create_client
 
+        url = (url or "").strip()
+        key = (key or "").strip()
+        if not url.startswith(("http://", "https://")):
+            raise RuntimeError(
+                f"SUPABASE_URL looks malformed ({url[:40]!r}). It must be the full project URL "
+                "like https://<ref>.supabase.co with no quotes/spaces/newline. "
+                "Check the GitHub Actions secret."
+            )
         self.client = create_client(url, key)
 
     def last_run_started_at(self) -> datetime | None:

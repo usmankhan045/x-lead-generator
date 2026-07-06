@@ -48,6 +48,10 @@ def load_prompt(name: str) -> str:
 
 def env(key: str, default: str | None = None, required: bool = False) -> str | None:
     val = os.getenv(key, default)
+    if isinstance(val, str):
+        # Strip whitespace/newlines — GitHub Actions secrets often keep a trailing
+        # newline from paste, which breaks URL/token validation (e.g. Supabase "Invalid URL").
+        val = val.strip()
     if required and not val:
         raise RuntimeError(f"Missing required environment variable: {key}")
     return val
