@@ -9,8 +9,8 @@ scraper:
     apidojo:
       actor_id: apidojo/tweet-scraper
   queries_per_run: 6                   # rotated deterministically by run number
-  max_items_per_query: 40
-  max_total_items_per_run: 250         # cost guard — also set max-cost-per-run in Apify console
+  max_items_per_query: 25
+  max_total_items_per_run: 120         # cost guard + keeps scoring under Groq free-tier TPM
   freshness_hours: 24                  # HARD RULE: nothing older is ever processed
 
 prefilter:
@@ -21,14 +21,19 @@ prefilter:
   max_following_ratio: 3.0             # following > 3x followers = junk signal
 
 scoring:
-  model: openai/gpt-oss-120b           # strongest free reasoning model on Groq
-  fallback_model: llama-3.3-70b-versatile
+  # High-volume stage (one call per surviving tweet). llama-3.3-70b has the most generous
+  # free-tier throughput and scores the rubric well; gpt-oss-120b (lower TPM) is the fallback.
+  model: llama-3.3-70b-versatile
+  fallback_model: openai/gpt-oss-120b
   deliver_threshold: 70
   borderline_threshold: 50
 
 drafting:
-  model: moonshotai/kimi-k2-instruct   # most natural prose on Groq free tier
-  fallback_model: meta-llama/llama-4-maverick-17b-128e-instruct
+  # Model IDs verified against the account's /models list (Jul 2026). kimi-k2 and
+  # llama-4-maverick are not available on this account; gpt-oss-120b is the strongest
+  # writer available. Swap here if better models appear — one config line.
+  model: openai/gpt-oss-120b
+  fallback_model: meta-llama/llama-4-scout-17b-16e-instruct
   checker_model: llama-3.3-70b-versatile  # different family = better AI-tell detection
   recent_style_exclusion: 5            # styles used in last N delivered leads are excluded
   max_reply_chars: 280

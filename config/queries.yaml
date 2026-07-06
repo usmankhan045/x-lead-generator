@@ -13,10 +13,13 @@ queries:
     niche: automation
     enabled: true
     query: >-
-      ("sick of manually" OR "tired of manually" OR "wasting hours" OR "waste so much time")
+      ("i'm sick of manually" OR "i'm tired of manually" OR "i waste hours" OR "we waste hours"
+      OR "sick of manually")
       (business OR clients OR orders OR invoices)
-      -filter:retweets -filter:replies -filter:links lang:en -hiring -giveaway
-    notes: vents about manual drudgery, anchored to business context words
+      -filter:retweets -filter:replies -filter:links lang:en -hiring -giveaway -"i built" -"i help"
+    notes: >-
+      first-person framing filters out self-promoters (who say "stop wasting hours, I built...");
+      -"i built"/-"i help" cut marketer noise seen in live testing
 
   - id: auto-tool-ask
     niche: automation
@@ -24,7 +27,7 @@ queries:
     query: >-
       ("is there a tool that" OR "is there an app that" OR "is there a way to automate"
       OR "what do you guys use for" OR "how do you guys handle")
-      -filter:retweets -filter:replies lang:en -crypto -web3 -"dm me"
+      -filter:retweets -filter:replies lang:en -crypto -web3 -"dm me" -"i built" -"i help"
     notes: direct solution-seeking questions; highest intent in the automation niche
 
   - id: auto-better-way
@@ -44,7 +47,10 @@ queries:
       ("looking for a developer" OR "need a developer to build" OR "need someone to build"
       OR "can anyone build" OR "who can build me")
       -filter:retweets -filter:replies lang:en -"open to work" -resume -"job alert"
-    notes: 'no -hiring here on purpose: real buyers say "hiring a dev to build my app"'
+      -intern -internship -"i built" -"i help"
+    notes: >-
+      no -hiring on purpose (buyers say "hiring a dev to build my app"); -intern/-internship
+      cut the "developer intern wanted" job posts seen in live testing
 
   - id: website-need
     niche: app-web

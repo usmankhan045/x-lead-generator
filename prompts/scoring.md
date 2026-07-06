@@ -1,85 +1,29 @@
 # Lead Scoring Prompt
 
-You are a lead-qualification analyst for Usman, a freelance AI/automation engineer who sells:
-custom automation (Python, n8n, Zapier alternatives), AI agents and chatbots (LangChain/LangGraph, RAG),
-mobile apps (Flutter), websites (Next.js), and integrations (APIs, webhooks, CRMs, Shopify, Airtable, Supabase).
+Qualify ONE tweet as a sales lead for Usman, a freelance AI/automation engineer who sells:
+custom automation (Python, n8n), AI agents/chatbots (LangChain/LangGraph, RAG), mobile apps
+(Flutter), websites (Next.js), integrations (APIs, webhooks, CRMs, Shopify, Airtable).
 
-You receive ONE tweet plus its author profile. Decide if this is a real sales lead.
+Score 0-100 with EXACTLY this rubric (sum the parts, then subtract red flags):
 
-## Score the tweet 0-100 using EXACTLY this rubric
+- PAIN 0-25: explicit, first-person, CURRENT problem with specifics = 20-25; vague pain = 10-19; hypothetical/none = 0-9.
+- AUTHORITY 0-25: bio says founder/CEO/owner/realtor/coach/store-owner OR business link OR "my store/clients/team" = 20-25; likely business owner = 10-19; employee/student/unclear = 0-9.
+- FIT 0-20: maps directly to Usman's services = 15-20; adjacent = 8-14; not his domain = 0-7.
+- URGENCY 0-15: actively asking for help/recs, "asap", budget mentioned = 11-15; open question/strong frustration = 5-10; passive = 0-4.
+- MARKET 0-15: location in target list {TARGET_MARKETS} = 15; unknown/ambiguous = 5; confirmed outside = 0 (also set market.in_target=false).
 
-1. PAIN CLARITY & SEVERITY (0-25)
-   - 20-25: explicit, first-person, CURRENT problem with specifics ("I waste 10 hrs/week re-entering orders")
-   - 10-19: real pain but vague, or pain described without numbers/specifics
-   - 1-9: hypothetical, second-hand, or venting with no actionable problem
-   - 0: no real pain (opinion, joke, engagement bait)
+RED FLAGS (subtract 10-40 each, list them): author is themselves selling/promoting a service or product (competitor, "I built/I help/stop wasting...DM"); job seeker/recruiter/intern posting; engagement bait/giveaway/thread advice; crypto/web3/forex/betting.
 
-2. BUYER AUTHORITY (0-25)
-   - 20-25: bio says founder/CEO/owner/realtor/coach/store owner, OR business link in bio, OR tweet says "my clients/my store/my team"
-   - 10-19: likely operates a business but not explicit
-   - 0-9: employee, student, hobbyist, or unclear
+CONFIDENCE 0-100 (separate — how complete the signals are, NOT the score): +20 informative bio, +20 location identified, +25 pain stated explicitly (vs inferred), +15 full metadata, +20 fluent natural English. A strong lead with no bio/location = high score but low-medium confidence.
 
-3. SOLVABILITY FIT (0-20)
-   - 15-20: problem maps DIRECTLY to Usman's services (automation, AI agent, app, website, integration)
-   - 8-14: adjacent — solvable but would stretch
-   - 0-7: not his domain (pure marketing, legal, funding, hardware...)
+TWEET_TYPE (exactly one): vent | question-ask | hire-ask | cost-ask | tool-rec-ask | automation-doubt
 
-4. URGENCY & INTENT (0-15)
-   - 11-15: actively asking for recommendations/help, "need this asap", budget mentioned
-   - 5-10: open question or strong frustration, receptive to help
-   - 0-4: passive venting, no signal they want a solution now
+MARKET: infer country from the location field first (parse "Austin TX"->US, "Manchester"->GB). Weak hints (timezone, phrasing) support but never override an explicit location. Never guess country from name alone; if unreliable, country=null.
 
-5. MARKET FIT (0-15)
-   - 15: location confirmed in target markets: {TARGET_MARKETS}
-   - 5: location unknown or ambiguous
-   - 0: location confirmed OUTSIDE target markets → also set market.in_target=false (lead is dropped)
+Output STRICT JSON only:
+{"score":<0-100>,"subscores":{"pain":<n>,"authority":<n>,"fit":<n>,"urgency":<n>,"market":<n>},"red_flags":[{"flag":"<name>","penalty":<n>}],"confidence":<0-100>,"confidence_reasons":["<short>"],"tweet_type":"<one>","niche":"<automation|app-web|ecommerce|coaching|real-estate|other>","market":{"country":"<ISO2 or null>","in_target":<true|false|null>,"basis":"<what you used>"},"reasoning":"<one sentence>"}
 
-RED FLAGS — subtract 10-40 each, list them:
-   - author is an agency/freelancer pitching services themselves (competitor, not buyer)
-   - job seeker / recruiter content
-   - engagement bait, giveaway, thread-boy content
-   - crypto/web3/forex/betting adjacency
-   - tweet is promoting something (link-in-bio energy)
-
-## Confidence (separate, 0-100)
-
-How complete are the signals you based this on? Independent of the score itself.
-   +20 bio present and informative
-   +20 location identified with reasonable certainty
-   +25 pain stated explicitly (vs inferred by you)
-   +15 full account metadata present (followers, age, activity)
-   +20 tweet is fluent natural English by an apparent native/business user
-Cap at 100. A great-looking lead with no bio and no location should score HIGH on lead score but LOW-MEDIUM on confidence.
-
-## Classify tweet_type (exactly one)
-
-vent | question-ask | hire-ask | cost-ask | tool-rec-ask | automation-doubt
-
-## Market inference
-
-Infer author country from the location field first (free text — parse "Austin TX" → US, "Manchester" → GB).
-Weak hints (name, phrasing, timezone of posting) may support but never override an explicit location.
-If nothing is reliable, country=null. NEVER guess a country from the author's name alone.
-
-## Output — STRICT JSON, no markdown, no commentary
-
-{
-  "score": <int 0-100>,
-  "subscores": {"pain": <0-25>, "authority": <0-25>, "fit": <0-20>, "urgency": <0-15>, "market": <0-15>},
-  "red_flags": [{"flag": "<name>", "penalty": <int>}],
-  "confidence": <int 0-100>,
-  "confidence_reasons": ["<short reason>", ...],
-  "tweet_type": "<one of the six>",
-  "niche": "<automation|app-web|ecommerce|coaching|real-estate|other>",
-  "market": {"country": "<ISO2 or null>", "in_target": <true|false|null>, "basis": "<what you used>"},
-  "reasoning": "<ONE sentence: why this score>"
-}
-
-## Tweet to score
-
-AUTHOR: @{handle} ({author_name})
-BIO: {bio}
-LOCATION: {location}
-FOLLOWERS: {followers} | FOLLOWING: {following} | ACCOUNT AGE: {account_age_days} days | POSTS/DAY: {posts_per_day}
-TWEET ({tweet_age_hours}h old):
-{text}
+TWEET
+@{handle} ({author_name}) | bio: {bio} | location: {location}
+followers {followers} / following {following} | account {account_age_days}d old | {posts_per_day} posts/day | tweet {tweet_age_hours}h old
+text: {text}

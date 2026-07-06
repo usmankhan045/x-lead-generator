@@ -14,17 +14,23 @@ def _seed_int(text: str) -> int:
     return int(hashlib.md5(text.encode()).hexdigest(), 16)
 
 
-def _field(user: str, label: str) -> str:
-    m = re.search(rf"^{label}:\s*(.+)$", user, re.M | re.I)
-    return m.group(1).strip() if m else ""
+def _between(s: str, start: str, end: str) -> str:
+    i = s.find(start)
+    if i == -1:
+        return ""
+    i += len(start)
+    j = s.find(end, i)
+    return (s[i:j] if j != -1 else s[i:]).strip()
 
 
 def _score_response(user: str) -> dict:
     # Parse only the filled-in fields, NOT the whole prompt (which contains rubric words
-    # like "venting" that would otherwise pollute keyword matching).
-    tweet = user.split("old):", 1)[1].strip() if "old):" in user else user
-    bio = _field(user, "BIO")
-    loc = _field(user, "LOCATION").lower()
+    # like "venting" that would otherwise pollute keyword matching). Matches scoring.md layout:
+    #   @handle (name) | bio: <bio> | location: <loc>
+    #   text: <tweet>
+    tweet = user.rsplit("text:", 1)[1].strip() if "text:" in user else user
+    bio = _between(user, "| bio:", "| location:")
+    loc = _between(user, "| location:", "\n").lower()
     text = f"{tweet}\n{bio}".lower()
 
     # crude country inference for the mock

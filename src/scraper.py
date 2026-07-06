@@ -132,8 +132,8 @@ def scrape(
     last_run: datetime | None,
     apify_token: str,
     client_factory=None,
-) -> list[dict[str, Any]]:
-    """Run the configured actor and return normalized, deduped-within-run tweets."""
+) -> tuple[list[dict[str, Any]], float]:
+    """Run the configured actor. Returns (normalized deduped tweets, actual run cost USD)."""
     provider = settings["scraper"]["provider"]
     actor_id, actor_input, term_map = build_actor_input(provider, queries, settings, last_run)
     query_niche = {q["id"]: q.get("niche") for q in queries}
@@ -146,25 +146,42 @@ def scrape(
         client = client_factory(apify_token)
 
     log.info("running actor %s with %d queries (maxItems=%s)", actor_id, len(queries), actor_input["maxItems"])
+    # apify-client v3 returns a Pydantic Run object (attributes, not dict keys).
     run = client.actor(actor_id).call(run_input=actor_input)
-    dataset_id = run["defaultDatasetId"]
+    if run is None:
+        log.warning("actor run returned None (failed/aborted)")
+        return [], 0.0
+    dataset_id = run.default_dataset_id
+    cost = float(getattr(run, "usage_total_usd", 0.0) or 0.0)
 
+    # The actor tags each item with searchTermIndex -> index into our searchTerms list,
+    # which is built in `queries` order, so index i maps to queries[i].
+    idx_map = {i: (q["id"], q.get("niche")) for i, q in enumerate(queries)}
     items = client.dataset(dataset_id).iterate_items()
-    return normalize_items(items, term_map, query_niche)
+    return normalize_items(items, idx_map, term_map, query_niche), cost
 
 
 def normalize_items(
-    items: Iterable[dict], term_map: dict[str, str], query_niche: dict[str, str]
+    items: Iterable[dict],
+    idx_map: dict[int, tuple[str, str]],
+    term_map: dict[str, str],
+    query_niche: dict[str, str],
 ) -> list[dict[str, Any]]:
     seen: set[str] = set()
     out: list[dict[str, Any]] = []
     for raw in items:
-        # try to attribute the tweet to the query that surfaced it
-        qid = None
-        search_term = _first(raw, "searchTerm", "search_term", "query")
-        if search_term and search_term in term_map:
-            qid = term_map[search_term]
-        norm = normalize_tweet(raw, qid, query_niche.get(qid) if qid else None)
+        # Attribute the tweet to the query that surfaced it: prefer searchTermIndex
+        # (the actor tags each item with it), fall back to the raw search term string.
+        qid, niche = None, None
+        idx = raw.get("searchTermIndex")
+        if isinstance(idx, int) and idx in idx_map:
+            qid, niche = idx_map[idx]
+        else:
+            term = _first(raw, "searchTerm", "search_term", "query")
+            if term and term in term_map:
+                qid = term_map[term]
+                niche = query_niche.get(qid)
+        norm = normalize_tweet(raw, qid, niche)
         if not norm or norm["tweet_id"] in seen:
             continue
         seen.add(norm["tweet_id"])

@@ -83,8 +83,11 @@ _PITCH_RE = re.compile(r"\b(dm me|book a call|i can build|hire me|check out my|i
 
 
 def clean_text(text: str) -> str:
-    text = text.replace("—", ", ").replace(" – ", ", ").strip()
-    text = _URL_RE.sub("", text).strip()
+    # Em-dash / spaced en-dash read as AI tells -> comma. Other unicode dashes and
+    # non-breaking hyphens (U+2011, common in model output like "15‑hour") -> plain hyphen.
+    text = text.replace("—", ", ").replace(" – ", ", ")
+    text = text.translate({0x2010: "-", 0x2011: "-", 0x2012: "-", 0x2013: "-", 0x2014: "-"})
+    text = _URL_RE.sub("", text.strip()).strip()
     return re.sub(r"\s{2,}", " ", text)
 
 

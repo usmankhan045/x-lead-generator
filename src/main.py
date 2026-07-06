@@ -86,9 +86,7 @@ def run_pipeline(
         est_cost = 0.0
     else:
         last_run = db.last_run_started_at()
-        tweets = scraper.scrape(settings, queries, last_run, env("APIFY_TOKEN", required=True))
-        # rough cost estimate: kaito ~ $0.00025/tweet (see plan §1)
-        est_cost = round(len(tweets) * 0.00025, 4)
+        tweets, est_cost = scraper.scrape(settings, queries, last_run, env("APIFY_TOKEN", required=True))
     scraped = len(tweets)
 
     # 3. DEDUP — never scan twice (DB is source of truth)
