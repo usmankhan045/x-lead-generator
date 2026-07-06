@@ -26,6 +26,25 @@ _NEG_PATTERNS = [re.compile(rf"(?<!\w){re.escape(k)}(?!\w)", re.I) for k in NEGA
 
 BIO_SPAM_HINTS = ["t.me/", "telegram", "onlyfans", "promo", "crypto", "forex", "🔞"]
 
+# Service-provider / competitor bios. These accounts SELL the exact services Usman does,
+# so they're never buyers — they flood "need a website / need a developer" searches with
+# their own pitches. Dropping them on the bio (cheap) before the LLM saves scoring calls,
+# rate-limit pressure, and noise. Phrases chosen to almost never appear in a real buyer's bio.
+COMPETITOR_BIO = [
+    "web developer", "web designer", "web design", "app developer", "software developer",
+    "full stack", "fullstack", "full-stack", "frontend developer", "backend developer",
+    "wordpress developer", "shopify developer", "shopify expert", "webflow developer",
+    "i build websites", "i build apps", "i build web", "i create websites", "we build websites",
+    "i design websites", "i make websites", "building websites for", "websites that convert",
+    "digital agency", "web agency", "design agency", "dev agency", "software house", "software agency",
+    "freelance developer", "freelance web", "freelance app", "freelance designer",
+    "available for hire", "available for freelance", "available for work", "open for work",
+    "open to work", "hire me", "dm for a website", "dms open for", "let's build your",
+    "n8n expert", "automation expert", "automation agency", "ai automation agency", "ai agency",
+    "i help businesses automate", "i help founders", "we help you automate", "i help you automate",
+    "we help businesses grow", "i build ai agents", "we build ai", "no-code developer", "nocode developer",
+]
+
 
 class Dropped(Exception):
     """Raised internally with a reason; caller records the reason for run stats."""
@@ -80,6 +99,10 @@ def check(tweet: dict, settings: dict, seen_ids: set[str], run_text_seen: set[st
     bio_l = (tweet.get("bio") or "").lower()
     if any(h in bio_l for h in BIO_SPAM_HINTS):
         raise Dropped("bio_spam")
+
+    # Author is a service provider (sells what Usman sells) -> not a buyer.
+    if any(c in bio_l for c in COMPETITOR_BIO):
+        raise Dropped("competitor_bio")
 
     # Author quality gates.
     followers = tweet.get("followers") or 0

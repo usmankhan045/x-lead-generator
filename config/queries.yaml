@@ -13,13 +13,13 @@ queries:
     niche: automation
     enabled: true
     query: >-
-      ("i'm sick of manually" OR "i'm tired of manually" OR "i waste hours" OR "we waste hours"
-      OR "sick of manually")
-      (business OR clients OR orders OR invoices)
+      ("sick of manually" OR "tired of manually" OR "wasting hours" OR "hours every week"
+      OR "so much time doing")
+      ("my business" OR "my team" OR clients OR orders OR invoices OR spreadsheet)
       -filter:retweets -filter:replies -filter:links lang:en -hiring -giveaway -"i built" -"i help"
     notes: >-
-      first-person framing filters out self-promoters (who say "stop wasting hours, I built...");
-      -"i built"/-"i help" cut marketer noise seen in live testing
+      business-context anchor keeps it on-target; the competitor_bio prefilter + scorer now
+      catch the self-promoters, so the query can stay broad enough to actually return results
 
   - id: auto-tool-ask
     niche: automation

@@ -45,7 +45,7 @@ markets:
   target: ["US", "CA", "GB", "IE", "AU", "NZ", "DE", "NL", "SE", "NO", "DK", "FI", "CH", "AT", "BE", "FR"]
 
 llm:
-  throttle_seconds: 2.0                # Groq free tier: 30 req/min per model
+  throttle_seconds: 3.0                # Groq free tier is token/min limited; ~3s keeps scoring under TPM
   max_retries: 2
 
 discord:
