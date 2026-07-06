@@ -1,12 +1,16 @@
-"""Hacker News lead source — the monthly "Freelancer? Seeking freelancer?" thread.
+"""Hacker News lead source — the monthly "Who is hiring?" and "Seeking freelancer?" threads.
 
-Comments there come in two flavours: "SEEKING WORK" (freelancers offering themselves) and
-"SEEKING FREELANCER" (companies who want to hire, usually with an email). We keep only the
-SEEKING FREELANCER ones — those are buyers. Read-only via the free Algolia HN API (no auth,
-no account, nothing to ban); outreach is a cold email, drafted downstream.
+Two threads, both posted monthly by @whoishiring:
+  - "Ask HN: Who is hiring?" — reliable, ~200+ posts/month. We keep only the CONTRACT/FREELANCE
+    -friendly ones (companies open to non-employee work = real clients for a freelancer).
+  - "Ask HN: Freelancer? Seeking freelancer?" — when it exists, keep the SEEKING FREELANCER
+    posts (companies wanting to hire). Often sparse.
 
-Normalized output matches the tweet lead dict so it flows through the same pipeline, with
-source="hn" so prefilter/scorer/drafter/Discord treat it appropriately.
+Read-only via the free Algolia HN API (no auth, no account, nothing to ban); outreach is a
+cold email, drafted downstream. The scorer's fit-gate then keeps only roles matching Usman's
+services (AI/automation/app/web/dev) and drops the rest (embedded Rust, sales, etc.).
+
+Normalized output matches the tweet lead dict (source="hn") so it flows through the pipeline.
 """
 from __future__ import annotations
 
@@ -25,6 +29,11 @@ ALGOLIA = "https://hn.algolia.com/api/v1"
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _LOC_RE = re.compile(r"(?:location|based in|located)[:\s]+([A-Za-z .,'/-]{2,40})", re.I)
 _REMOTE_RE = re.compile(r"\bremote\b", re.I)
+# contract/freelance-friendly signal (word-boundary) in a Who-is-hiring post header
+_CONTRACT_RE = re.compile(
+    r"\b(contract|contractor|freelance|freelancer|part[- ]?time|1099|c2c|corp[- ]to[- ]corp|project[- ]based)\b",
+    re.I,
+)
 
 
 def _strip_html(s: str | None) -> str:
@@ -34,21 +43,21 @@ def _strip_html(s: str | None) -> str:
     return collapse_ws(s)
 
 
-def _find_freelancer_thread() -> str | None:
-    """Return the objectID of the most recent 'Freelancer? Seeking freelancer?' story."""
+def _latest_thread(query: str, must_contain: tuple[str, ...]) -> str | None:
+    """Return the objectID of the most recent @whoishiring story whose title matches."""
     try:
         r = requests.get(
             f"{ALGOLIA}/search_by_date",
-            params={"query": "Freelancer Seeking freelancer", "tags": "story,author_whoishiring", "hitsPerPage": 10},
+            params={"query": query, "tags": "story,author_whoishiring", "hitsPerPage": 10},
             timeout=20,
         )
         r.raise_for_status()
         for hit in r.json().get("hits", []):
             title = (hit.get("title") or "").lower()
-            if "freelancer" in title and "seeking" in title:
+            if all(w in title for w in must_contain):
                 return hit["objectID"]
     except requests.RequestException as e:
-        log.warning("HN thread search failed: %s", e)
+        log.warning("HN thread search failed (%s): %s", query, e)
     return None
 
 
@@ -70,7 +79,7 @@ def _infer_niche(text: str) -> str:
     return "app-web"
 
 
-def _normalize(comment: dict, text: str) -> dict[str, Any]:
+def _normalize(comment: dict, text: str, query_id: str) -> dict[str, Any]:
     cid = str(comment.get("id"))
     author = comment.get("author") or ""
     created = datetime.fromtimestamp(comment["created_at_i"], tz=timezone.utc)
@@ -91,46 +100,54 @@ def _normalize(comment: dict, text: str) -> dict[str, Any]:
         "account_created_at": None,
         "statuses_count": None,
         "is_verified": False,
-        "query_id": "hn-seeking-freelancer",
+        "query_id": query_id,
         "niche": _infer_niche(text),
         "contact_email": email.group(0) if email else "",
     }
 
 
-def fetch_leads(settings: dict, last_run: datetime | None) -> tuple[list[dict[str, Any]], float]:
-    """Return (normalized SEEKING FREELANCER leads within the lookback window, cost=0.0)."""
-    cfg = settings.get("sources", {}).get("hackernews", {})
-    lookback_h = cfg.get("freshness_hours", 336)
-    max_items = cfg.get("max_items", 40)
-    floor = now_utc() - timedelta(hours=lookback_h)
-    if last_run:
-        floor = max(floor, last_run)
-
-    story_id = _find_freelancer_thread()
-    if not story_id:
-        log.warning("no HN freelancer thread found")
-        return [], 0.0
-
+def _harvest(story_id: str, keep, query_id: str, floor: datetime, out: dict) -> None:
+    """Add matching comments from a thread to `out` (keyed by tweet_id, deduped)."""
     try:
         item = requests.get(f"{ALGOLIA}/items/{story_id}", timeout=30).json()
     except requests.RequestException as e:
-        log.warning("HN item fetch failed: %s", e)
-        return [], 0.0
-
-    out: list[dict] = []
+        log.warning("HN item fetch failed (%s): %s", story_id, e)
+        return
     for c in item.get("children") or []:
         if not c or not c.get("text") or not c.get("created_at_i"):
             continue
         text = _strip_html(c["text"])
-        # keep only companies hiring (SEEKING FREELANCER), skip freelancers offering (SEEKING WORK)
-        if "seeking freelancer" not in text[:60].lower():
+        if not keep(text):
             continue
-        created = datetime.fromtimestamp(c["created_at_i"], tz=timezone.utc)
-        if created < floor:
+        if datetime.fromtimestamp(c["created_at_i"], tz=timezone.utc) < floor:
             continue
-        out.append(_normalize(c, text))
-        if len(out) >= max_items:
-            break
+        lead = _normalize(c, text, query_id)
+        out.setdefault(lead["tweet_id"], lead)
 
-    log.info("HN: %d SEEKING FREELANCER leads within %dh", len(out), lookback_h)
-    return out, 0.0
+
+def fetch_leads(settings: dict, last_run: datetime | None) -> tuple[list[dict[str, Any]], float]:
+    """Return (normalized HN leads within the lookback window, cost=0.0).
+
+    Always scans the full lookback (HN is free + posts are sparse/long-lived); dedup is handled
+    downstream by the seen-table, so we do NOT clamp to last_run like X does.
+    """
+    cfg = settings.get("sources", {}).get("hackernews", {})
+    lookback_h = cfg.get("freshness_hours", 960)
+    max_items = cfg.get("max_items", 40)
+    floor = now_utc() - timedelta(hours=lookback_h)
+    out: dict[str, dict] = {}
+
+    # 1. "Who is hiring?" — reliable monthly, keep contract/freelance-friendly roles only.
+    hiring = _latest_thread("Who is hiring", ("who is hiring",))
+    if hiring:
+        _harvest(hiring, lambda t: bool(_CONTRACT_RE.search(t[:400])), "hn-who-is-hiring", floor, out)
+
+    # 2. "Freelancer? Seeking freelancer?" — bonus, keep SEEKING FREELANCER (companies) posts.
+    freelancer = _latest_thread("Freelancer Seeking freelancer", ("freelancer", "seeking"))
+    if freelancer:
+        _harvest(freelancer, lambda t: "seeking freelancer" in t[:60].lower(),
+                 "hn-seeking-freelancer", floor, out)
+
+    leads = list(out.values())[:max_items]
+    log.info("HN: %d contract/freelance leads within %dh", len(leads), lookback_h)
+    return leads, 0.0

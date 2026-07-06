@@ -105,7 +105,9 @@ def classify(tweets: list[dict], settings: dict) -> tuple[list[dict], dict[str, 
             continue
         stats["scored"] += 1
         # Confirmed outside target markets -> drop (in_target is False, not None).
-        if s["market"]["in_target"] is False:
+        # Exception: HN contract roles are remote and pay in hard currency regardless of the
+        # company's HQ, so don't drop them on location — the fit-gate handles relevance.
+        if s["market"]["in_target"] is False and t.get("source") != "hn":
             stats["dropped_out_of_market"] += 1
             continue
         t["_score"] = s

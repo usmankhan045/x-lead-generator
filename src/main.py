@@ -203,8 +203,8 @@ def _tier(lead: dict, deliver_th: int, border_th: int) -> str:
     """
     s = lead["_score"]
     if lead.get("source") == "hn":
-        if s["market"]["in_target"] is False:  # confirmed outside target -> drop
-            return "drop"
+        # Pre-qualified remote contract roles: gate purely on service fit (stable signal),
+        # ignore market (they pay globally) and the noisy composite score.
         fit = s["subscores"].get("fit", 0)
         if fit >= 12:
             return "deliver"

@@ -7,9 +7,9 @@ sources:
     enabled: true
   hackernews:
     enabled: true
-    # HN "Ask HN: Freelancer? Seeking freelancer?" monthly thread — companies posting
-    # "SEEKING FREELANCER, email us". Read-only free API, outreach is cold email.
-    freshness_hours: 336               # 14 days — a hiring post stays valid far longer than a tweet
+    # HN "Who is hiring?" (contract/freelance roles) + "Seeking freelancer?" monthly threads.
+    # Read-only free API, outreach is cold email. Fit-gated to Usman's services downstream.
+    freshness_hours: 960               # 40 days — covers a full monthly hiring thread cycle
     max_items: 40
 
 scraper:

@@ -38,7 +38,7 @@ def main() -> int:
                 "automation that syncs inventory across 3 channels. Python/n8n ideal. Email jobs@acme.co",
     }
     text = hn._strip_html(comment["text"])
-    lead = hn._normalize(comment, text)
+    lead = hn._normalize(comment, text, "hn-seeking-freelancer")
 
     check(lead["source"] == "hn", "source not hn")
     check(lead["tweet_id"] == "hn-44444444", f"bad id {lead['tweet_id']}")
