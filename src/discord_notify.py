@@ -35,8 +35,11 @@ def _trunc(text: str, n: int) -> str:
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
-def build_lead_embed(lead: dict, index: int, total: int) -> dict[str, Any]:
+def build_lead_embed(lead: dict, index: int, total: int, tier: str = "LEAD") -> dict[str, Any]:
     """One self-contained card per lead: header, their post + link, then the answers.
+
+    tier "LEAD"   -> 🎯 high-confidence, act on these (main channel)
+    tier "REVIEW" -> 🔎 mid-tier, your judgment (review channel)
 
     Layout (top to bottom):
       title  : 🎯 Lead 2/3 · @handle          (clickable -> opens the tweet)
@@ -46,6 +49,7 @@ def build_lead_embed(lead: dict, index: int, total: int) -> dict[str, Any]:
     score = lead["_score"]
     conf = score["confidence"]
     color, band, dot = _band(conf)
+    label, icon = ("Review", "🔎") if tier == "REVIEW" else ("Lead", "🎯")
     age_h = lead.get("_age_hours")
     age_str = f"{age_h:.0f}h old" if isinstance(age_h, (int, float)) and age_h >= 0 else "age unknown"
 
@@ -78,12 +82,12 @@ def build_lead_embed(lead: dict, index: int, total: int) -> dict[str, Any]:
         fields.append({"name": "📩 DM — send ONLY after they reply to you",
                        "value": f"```{_trunc(lead['dm_draft'], 480)}```", "inline": False})
 
-    footer = f"lead {index}/{total} · query: {lead.get('query_id', '?')}"
+    footer = f"{label.lower()} {index}/{total} · query: {lead.get('query_id', '?')}"
     if footer_flags:
         footer += " · ⚠️ " + _trunc("; ".join(footer_flags), 120)
 
     return {
-        "title": f"🎯 Lead {index}/{total} · @{lead.get('handle', '')}",
+        "title": f"{icon} {label} {index}/{total} · @{lead.get('handle', '')}",
         "url": url,
         "color": color,
         "description": _trunc(desc, 4000),
@@ -108,16 +112,20 @@ def _post(webhook: str, payload: dict, dry_run_sink: list | None) -> None:
         return
 
 
-def deliver_leads(webhook: str, leads: list[dict], dry_run_sink: list | None = None) -> None:
+def deliver_leads(
+    webhook: str, leads: list[dict], dry_run_sink: list | None = None, tier: str = "LEAD"
+) -> None:
     """Post one self-contained card per lead, oldest first so the freshest lands at the
     bottom (most visible). Numbered 1..N and separated so leads never blend together."""
+    if not leads or not (webhook or dry_run_sink is not None):
+        return
     ordered = sorted(leads, key=lambda l: l.get("_age_hours", 0), reverse=True)
     total = len(ordered)
     for i, lead in enumerate(ordered, start=1):
-        _post(webhook, {"embeds": [build_lead_embed(lead, i, total)]}, dry_run_sink)
+        _post(webhook, {"embeds": [build_lead_embed(lead, i, total, tier)]}, dry_run_sink)
         if dry_run_sink is None:
             time.sleep(0.6)  # stay well under Discord's ~5 req/2s webhook limit
-    log.info("delivered %d leads", total)
+    log.info("delivered %d %s cards", total, tier.lower())
 
 
 def deliver_digest(
@@ -129,21 +137,18 @@ def deliver_digest(
         f"skipped-seen {stats.get('seen_skipped', 0)} · "
         f"prefiltered→{stats.get('prefiltered', 0)} · "
         f"scored {stats.get('scored', 0)} · "
-        f"**delivered {stats.get('delivered', 0)}** · "
-        f"borderline {stats.get('borderline', 0)}",
+        f"**delivered {stats.get('delivered', 0)}** (main) · "
+        f"review {stats.get('borderline', 0)} (review channel)",
         f"est. Apify cost: ${stats.get('est_cost_usd', 0):.3f}",
     ]
     qs = stats.get("query_stats") or {}
     if qs:
         top = sorted(qs.items(), key=lambda kv: kv[1].get("delivered", 0), reverse=True)
-        lines.append("**per-query:** " + " · ".join(
+        lines.append("**per-query (delivered/scraped):** " + " · ".join(
             f"{qid}({v.get('delivered',0)}/{v.get('scraped',0)})" for qid, v in top
         ))
     if borderline:
-        lines.append("**borderline (50-69), no drafts:**")
-        for b in borderline[:10]:
-            s = b["_score"]
-            lines.append(f"• [{s['score']}/{s['confidence']}%] @{b.get('handle','')}: {_trunc(b['text'], 120)} — <{b.get('url','')}>")
+        lines.append(f"**{len(borderline)} review-tier lead(s) posted to the review channel** with drafts.")
 
     _post(webhook, {"content": _trunc("\n".join(lines), 1900)}, dry_run_sink)
     log.info("delivered digest for run %s", run_id)

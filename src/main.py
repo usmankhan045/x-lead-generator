@@ -112,9 +112,9 @@ def run_pipeline(
     deliver_th = settings["scoring"]["deliver_threshold"]
     border_th = settings["scoring"]["borderline_threshold"]
     to_deliver = [s for s in scored if s["_score"]["score"] >= deliver_th]
-    borderline = [s for s in scored if border_th <= s["_score"]["score"] < deliver_th]
+    review = [s for s in scored if border_th <= s["_score"]["score"] < deliver_th]
 
-    # 7. DRAFT (only for delivered leads)
+    # 7. DRAFT — both delivered AND review-tier leads get drafts (review = your judgment).
     styles = drafter.parse_styles(load_prompt("comment_styles.md"))
     window = settings["drafting"]["recent_style_exclusion"]
     proof = load_prompt("proof_library.md")
@@ -123,14 +123,14 @@ def run_pipeline(
     recent: deque[list[str]] = deque(maxlen=window)
     for s in db.recent_delivered_styles(window):
         recent.append([s])
-    for lead in sorted(to_deliver, key=lambda l: l["_age_hours"]):  # freshest drafted last
+    # Draft highest-score first so style rotation favours the best leads.
+    for lead in sorted(to_deliver + review, key=lambda l: l["_score"]["score"], reverse=True):
         excluded = {s for group in recent for s in group}
         drafts = drafter.draft_for_lead(lead, settings, styles, excluded, proof)
         lead.update(drafts)
         recent.append(drafts["styles_used"])
-        db.insert_lead(_lead_row(lead, run_id, "delivered"))
-    for lead in borderline:
-        db.insert_lead(_lead_row(lead, run_id, "borderline"))
+        status = "delivered" if lead["_score"]["score"] >= deliver_th else "borderline"
+        db.insert_lead(_lead_row(lead, run_id, status))
 
     # 8. DELIVER + digest
     stats = {
@@ -139,7 +139,7 @@ def run_pipeline(
         "prefiltered": len(survivors),
         "scored": score_stats["scored"],
         "delivered": len(to_deliver),
-        "borderline": len(borderline),
+        "borderline": len(review),
         "est_cost_usd": est_cost,
         "query_stats": _query_stats(queries, scored, to_deliver),
         "drop_reasons": drop_reasons,
@@ -148,9 +148,11 @@ def run_pipeline(
 
     lead_webhook = _webhook(dry_run)
     digest_webhook = env("DISCORD_DIGEST_WEBHOOK_URL") or lead_webhook
+    review_webhook = env("DISCORD_REVIEW_WEBHOOK_URL") or lead_webhook  # falls back to main
     if lead_webhook or discord_sink is not None:
-        discord_notify.deliver_leads(lead_webhook, to_deliver, discord_sink)
-        discord_notify.deliver_digest(digest_webhook, run_id, stats, borderline, discord_sink)
+        discord_notify.deliver_leads(lead_webhook, to_deliver, discord_sink, tier="LEAD")
+        discord_notify.deliver_leads(review_webhook, review, discord_sink, tier="REVIEW")
+        discord_notify.deliver_digest(digest_webhook, run_id, stats, review, discord_sink)
     else:
         log.warning("no Discord webhook configured; skipping delivery")
 
