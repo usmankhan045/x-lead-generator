@@ -7,12 +7,7 @@ on:
   schedule:
     - cron: "0 5 * * *"
     - cron: "0 14 * * *"
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Run without DB writes (posts to test webhook)"
-        type: boolean
-        default: false
+  workflow_dispatch:   # allows a manual "Run workflow" trigger
 
 concurrency:
   group: x-lead-hunt
@@ -41,9 +36,4 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           DISCORD_DIGEST_WEBHOOK_URL: ${{ secrets.DISCORD_DIGEST_WEBHOOK_URL }}
           DISCORD_TEST_WEBHOOK_URL: ${{ secrets.DISCORD_TEST_WEBHOOK_URL }}
-        run: |
-          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            python src/main.py --dry-run
-          else
-            python src/main.py
-          fi
+        run: python src/main.py
