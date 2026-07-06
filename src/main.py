@@ -77,15 +77,18 @@ def run_pipeline(
 ) -> dict[str, Any]:
     t = now_utc()
     run_id = t.strftime("run-%Y%m%d-%H%M%S")
-    db.create_run(run_id)
     query_niche = {q["id"]: q.get("niche") for q in queries}
+
+    # Read the PREVIOUS run's start BEFORE creating this run's row — otherwise the
+    # since-window would be set to "now" (this run reading itself) and find no tweets.
+    last_run = db.last_run_started_at()
+    db.create_run(run_id)
 
     # 1-2. SCRAPE (or fixture)
     if fixture:
         tweets = load_fixture(fixture, query_niche)
         est_cost = 0.0
     else:
-        last_run = db.last_run_started_at()
         tweets, est_cost = scraper.scrape(settings, queries, last_run, env("APIFY_TOKEN", required=True))
     scraped = len(tweets)
 
