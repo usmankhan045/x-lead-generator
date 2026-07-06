@@ -195,6 +195,14 @@ def _write_dm(tweet: dict, score: dict, proof: str, settings: dict) -> str:
 _EMAIL_SYSTEM = "You write short, specific, human cold emails. You output strict JSON."
 
 
+def _clean_email_body(text: str) -> str:
+    """Normalize unicode dashes (AI tells) but PRESERVE line breaks (unlike clean_text)."""
+    text = text.replace("—", ", ").replace("–", ", ")           # em/en dash joining clauses -> comma
+    text = text.translate({0x2010: "-", 0x2011: "-", 0x2012: "-"})  # hyphen variants in words -> "-"
+    text = re.sub(r"[ \t]{2,}", " ", text)                       # collapse runs of spaces, keep newlines
+    return "\n".join(line.rstrip() for line in text.splitlines()).strip()
+
+
 def _draft_email(lead: dict, proof: str, settings: dict) -> dict[str, Any]:
     """HN 'SEEKING FREELANCER' leads are worked by email, not an X reply."""
     persona = load_prompt("email_persona.md")
@@ -204,9 +212,9 @@ def _draft_email(lead: dict, proof: str, settings: dict) -> dict[str, Any]:
     )
     try:
         out = llm.call_json(_EMAIL_SYSTEM, user, model=settings["drafting"]["model"],
-                            fallback_model=settings["drafting"].get("fallback_model"), temperature=0.6)
+                            fallback_model=settings["drafting"].get("fallback_model"), temperature=0.7)
         subject = clean_text(out.get("subject", ""))
-        body = out.get("body", "").replace("—", "-").strip()
+        body = _clean_email_body(out.get("body", ""))
         email = f"Subject: {subject}\n\n{body}" if subject else body
     except Exception as e:  # noqa: BLE001
         log.warning("email draft failed: %s", e)
