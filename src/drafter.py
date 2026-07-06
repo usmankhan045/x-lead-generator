@@ -147,7 +147,33 @@ def _check_and_fix(text: str, max_chars: int, settings: dict) -> str:
             text = verdict["rewrite"]
     except Exception as e:  # noqa: BLE001 — checker is best-effort; never block a draft on it
         log.warning("AI-tell check failed, keeping original: %s", e)
-    return clean_text(text)
+    return _enforce_length(clean_text(text), max_chars, settings)
+
+
+def _enforce_length(text: str, max_chars: int, settings: dict) -> str:
+    """Guarantee the reply fits max_chars. Try an LLM shorten first (keeps it natural +
+    keeps the closing question), then hard-trim at a sentence boundary as a last resort."""
+    if len(text) <= max_chars:
+        return text
+    try:
+        user = (
+            f"Shorten this X reply to UNDER {max_chars} characters. Keep it natural, keep the "
+            f"closing question, drop the least important clause. No links, no em-dashes.\n\n"
+            f'REPLY: "{text}"\n\nReturn {{"text": "<shortened reply>"}}'
+        )
+        out = clean_text(llm.call_json(_CHECKER_SYSTEM, user, model=settings["drafting"]["checker_model"], temperature=0.3).get("text", ""))
+        if out and len(out) <= max_chars:
+            return out
+        if out:
+            text = out
+    except Exception as e:  # noqa: BLE001
+        log.warning("length-shorten failed: %s", e)
+    # Last resort: keep whole sentences up to the limit; preserve a trailing question if present.
+    if len(text) <= max_chars:
+        return text
+    clipped = text[:max_chars]
+    cut = max(clipped.rfind(". "), clipped.rfind("? "), clipped.rfind("! "))
+    return (clipped[: cut + 1].strip() if cut > 40 else clipped.rsplit(" ", 1)[0].strip())
 
 
 def _write_dm(tweet: dict, score: dict, proof: str, settings: dict) -> str:
