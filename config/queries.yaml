@@ -163,3 +163,53 @@ queries:
       (business OR company OR store OR brand OR startup OR practice OR restaurant)
       -filter:retweets -filter:replies lang:en -"link in bio" -wix
     notes: business website need only; the plain "need a website" caught movie-watchers
+
+  # ── Expanded fields (v3): more niches to widen reach ───────────────────────
+  - id: ai-chatbot-want
+    niche: automation
+    enabled: true
+    query: >-
+      ("want an ai chatbot" OR "need a chatbot for" OR "add ai to my" OR "ai assistant for my"
+      OR "build a chatbot for" OR "ai agent for my")
+      (business OR website OR store OR customers OR support OR "my clients")
+      -filter:retweets -filter:replies lang:en -"i built" -course -"we help"
+    notes: businesses wanting an AI chatbot/agent (direct fit for LangChain/RAG work)
+
+  - id: local-biz-web
+    niche: app-web
+    enabled: true
+    query: >-
+      ("need a website" OR "need online booking" OR "booking system for" OR "online ordering for"
+      OR "website and booking")
+      (restaurant OR salon OR clinic OR gym OR cafe OR dentist OR "law firm" OR "small business")
+      -filter:retweets -filter:replies lang:en -wix -"link in bio"
+    notes: local service businesses needing web + booking; strong paying buyers
+
+  - id: woo-amazon-ops
+    niche: ecommerce
+    enabled: true
+    query: >-
+      (woocommerce OR "amazon seller" OR "my amazon store" OR "etsy shop" OR "my ebay")
+      ("is there a tool" OR "how do you" OR "manually" OR "struggling with" OR "app to" OR "automate")
+      -filter:retweets -filter:replies lang:en -course -dropshipping -"i built"
+    notes: e-commerce beyond Shopify (Woo/Amazon/Etsy/eBay sellers)
+
+  - id: integrate-data
+    niche: automation
+    enabled: true
+    query: >-
+      ("how do i connect" OR "how to sync" OR "integrate" OR "sync between" OR "get my data from"
+      OR "connect my")
+      (crm OR shopify OR quickbooks OR airtable OR "google sheets" OR stripe OR hubspot OR salesforce)
+      -filter:retweets -filter:replies lang:en -"i built" -course -"we help"
+    notes: integration/data-sync needs = high-value webhook/API work
+
+  - id: solo-founder-need
+    niche: automation
+    enabled: true
+    query: >-
+      ("as a solo founder i" OR "solopreneur" OR "one person business" OR "running my business alone"
+      OR "wearing all the hats")
+      ("need to" OR "how do i" OR "struggling to" OR "no time to" OR "help")
+      -filter:retweets -filter:replies lang:en -course -"i built" -webinar
+    notes: overwhelmed solo operators = motivated buyers for automation/systems

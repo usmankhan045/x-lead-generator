@@ -8,7 +8,7 @@ scraper:
       actor_id: kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest
     apidojo:
       actor_id: apidojo/tweet-scraper
-  queries_per_run: 6                   # rotated deterministically by run number
+  queries_per_run: 8                   # rotated deterministically; more per run = wider reach
   max_items_per_query: 25
   max_total_items_per_run: 120         # cost guard + keeps scoring under Groq free-tier TPM
   freshness_hours: 24                  # HARD RULE: nothing older is ever processed
@@ -27,8 +27,8 @@ scoring:
   # free-tier throughput and scores the rubric well; gpt-oss-120b (lower TPM) is the fallback.
   model: llama-3.3-70b-versatile
   fallback_model: openai/gpt-oss-120b
-  deliver_threshold: 70
-  borderline_threshold: 50
+  deliver_threshold: 65                # widened from 70 to catch real buyers with modest profiles
+  borderline_threshold: 45
 
 drafting:
   # Model IDs verified against the account's /models list (Jul 2026). kimi-k2 and
@@ -41,10 +41,17 @@ drafting:
   max_reply_chars: 280
 
 markets:
-  # ISO country codes considered target markets. Confirmed outside => dropped.
-  # Unknown/ambiguous location => delivered with lowered confidence + flag.
+  # ISO country codes considered target markets (paying economies). Confirmed outside => dropped.
+  # Unknown/ambiguous location => delivered (market gets a mid score, not a drop).
   # NOTE: quotes are required — YAML parses bare NO (Norway) as the boolean false.
-  target: ["US", "CA", "GB", "IE", "AU", "NZ", "DE", "NL", "SE", "NO", "DK", "FI", "CH", "AT", "BE", "FR"]
+  # Expanded to more high-GDP markets that pay for dev/automation work, while still
+  # excluding low-willingness-to-pay markets (India, Pakistan, Nigeria, etc.).
+  target: [
+    "US", "CA", "GB", "IE", "AU", "NZ",                          # core anglosphere
+    "DE", "NL", "SE", "NO", "DK", "FI", "CH", "AT", "BE", "FR",  # W/N Europe
+    "LU", "ES", "IT", "PT", "PL", "CZ", "EE", "IS", "GR",        # more Europe
+    "SG", "HK", "AE", "SA", "QA", "KW", "IL", "JP", "KR", "TW",  # APAC + Gulf + Israel
+  ]
 
 llm:
   throttle_seconds: 4.0                # Groq free tier is token/min limited; 4s keeps scoring under TPM

@@ -6,13 +6,16 @@ custom automation (Python, n8n), AI agents/chatbots (LangChain/LangGraph, RAG), 
 
 Score 0-100 with EXACTLY this rubric (sum the parts, then subtract red flags):
 
-- PAIN 0-25: explicit, first-person, CURRENT problem with specifics = 20-25; vague pain = 10-19; hypothetical/none = 0-9.
-- AUTHORITY 0-25: bio says founder/CEO/owner/realtor/coach/store-owner OR business link OR "my store/clients/team" = 20-25; likely business owner = 10-19; employee/student/unclear = 0-9.
-- FIT 0-20: maps directly to Usman's services = 15-20; adjacent = 8-14; not his domain = 0-7.
-- URGENCY 0-15: actively asking for help/recs, "asap", budget mentioned = 11-15; open question/strong frustration = 5-10; passive = 0-4.
-- MARKET 0-15: location in target list {TARGET_MARKETS} = 15; unknown/ambiguous = 5; confirmed outside = 0 (also set market.in_target=false).
+A REAL, SOLVABLE PROBLEM from someone who wants it fixed matters more than a fancy title.
+Do NOT require a "founder/CEO" bio to score well.
 
-RED FLAGS (subtract 10-40 each, list them): author is themselves selling/promoting a service or product (competitor, "I built/I help/stop wasting...DM"); job seeker/recruiter/intern posting; engagement bait/giveaway/thread advice; crypto/web3/forex/betting.
+- PAIN 0-30: explicit, first-person, CURRENT problem with specifics ("I spend 10 hrs/wk on X") = 24-30; clear but less specific = 14-23; vague/passing mention = 5-13; hypothetical/none = 0-4.
+- AUTHORITY 0-18: runs a business/store/practice/side-project OR speaks as an operator ("my store/clients/team/customers") OR bio shows founder/owner/coach/realtor = 13-18; individual with a genuine need but no clear business signal = 6-12; clearly not a decision-maker (employee venting, student) = 0-5.
+- FIT 0-22: maps directly to Usman's services (automation, AI agent/chatbot, app, website, integration) = 16-22; adjacent/solvable with a stretch = 8-15; not his domain = 0-7.
+- URGENCY 0-15: actively asking for help/recs, "asap", budget/hiring mentioned, clear "I need this" = 10-15; open question or real frustration seeking a fix = 5-9; passive/rhetorical = 0-4.
+- MARKET 0-15: location in target list {TARGET_MARKETS} = 15; unknown/ambiguous = 8; confirmed outside = 0 (also set market.in_target=false).
+
+RED FLAGS (subtract 10-40 each, list them) -- THESE PROTECT QUALITY, keep applying hard: author is themselves selling/promoting a service or product (competitor / agency / "I built/I help/we help/stop wasting...DM/book a call"); job seeker/recruiter/"HIRING" vacancy posting; engagement bait/giveaway/thread advice; crypto/web3/forex/betting; pure content/thought-leadership with no personal need.
 
 CONFIDENCE 0-100 (separate — how complete the signals are, NOT the score): +20 informative bio, +20 location identified, +25 pain stated explicitly (vs inferred), +15 full metadata, +20 fluent natural English. A strong lead with no bio/location = high score but low-medium confidence.
 
