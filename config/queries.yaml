@@ -1,130 +1,165 @@
 # Query bank — X advanced-search queries for pain-point mining.
-# Rules (research-backed, Jul 2026):
-#   - quoted intent phrases in OR groups + structural filters + 3-5 word negatives
+#
+# Design principle (v2, after live diagnostics): BUSINESS ANCHOR + BUYING INTENT.
+# The v1 broad queries ("need a website", "sick of manually") surfaced mostly noise —
+# people wanting to watch movies, vague vents, jokes, and self-promoters. These queries
+# require a business context word (my business/team/store/clients/company) AND/OR an
+# active buying signal (hire, recommend, quote, budget, "who can build"), which is what
+# separates a real prospect from a random complaint.
+#
+# Rules:
 #   - keep each query <= ~15 operators / ~400 chars (X silently drops operators past ~22)
-#   - NO min_faves: the best lead is a fresh tweet nobody answered yet
-#   - since-window is appended at runtime by scraper.py (last run time, capped at 24h)
-# Validate any new query by pasting it into X web search first: >= 20-30% relevance
-# before enabling. Track per-query hit rates in x_runs.query_stats; rewrite losers.
+#   - NO min_faves (best lead is a fresh, unanswered tweet)
+#   - since-window appended at runtime; competitor_bio + scorer filter self-promoters
+#   - validate a new query in X web search first (>= 20-30% relevance) before enabling
+#
+# Higher precision = lower volume. That is the intended trade: a few real buyers beats
+# a flood of movie-website-seekers. Track per-query delivered rate in the digest and cut
+# anything that never produces a lead.
 
 queries:
-  # ── Automation / manual-work pain ─────────────────────────────────────────
-  - id: auto-manual-pain
-    niche: automation
-    enabled: true
-    query: >-
-      ("sick of manually" OR "tired of manually" OR "wasting hours" OR "hours every week"
-      OR "so much time doing")
-      ("my business" OR "my team" OR clients OR orders OR invoices OR spreadsheet)
-      -filter:retweets -filter:replies -filter:links lang:en -hiring -giveaway -"i built" -"i help"
-    notes: >-
-      business-context anchor keeps it on-target; the competitor_bio prefilter + scorer now
-      catch the self-promoters, so the query can stay broad enough to actually return results
-
-  - id: auto-tool-ask
-    niche: automation
-    enabled: true
-    query: >-
-      ("is there a tool that" OR "is there an app that" OR "is there a way to automate"
-      OR "what do you guys use for" OR "how do you guys handle")
-      -filter:retweets -filter:replies lang:en -crypto -web3 -"dm me" -"i built" -"i help"
-    notes: direct solution-seeking questions; highest intent in the automation niche
-
-  - id: auto-better-way
-    niche: automation
-    enabled: true
-    query: >-
-      ("need to automate" OR "want to automate" OR "there has to be a better way"
-      OR "still doing this manually")
-      -filter:retweets -filter:replies -filter:links lang:en -course -webinar -hiring
-    notes: automation-doubt tweets; Gut Check Validation style usually fits
-
-  # ── App / website build requests ──────────────────────────────────────────
-  - id: dev-hire-ask
-    niche: app-web
-    enabled: true
-    query: >-
-      ("looking for a developer" OR "need a developer to build" OR "need someone to build"
-      OR "can anyone build" OR "who can build me")
-      -filter:retweets -filter:replies lang:en -"open to work" -resume -"job alert"
-      -intern -internship -"i built" -"i help"
-    notes: >-
-      no -hiring on purpose (buyers say "hiring a dev to build my app"); -intern/-internship
-      cut the "developer intern wanted" job posts seen in live testing
-
-  - id: website-need
-    niche: app-web
-    enabled: true
-    query: >-
-      ("need a website" OR "need a new website" OR "build me a website"
-      OR "website for my business" OR "redesign my website")
-      -filter:retweets -filter:replies lang:en -"link in bio" -wix -"free guide"
-    notes: website asks; watch for competitor agencies replying — reply fast
-
-  - id: app-idea-mvp
-    niche: app-web
-    enabled: true
-    query: >-
-      ("have an app idea" OR "app idea but" OR "build my MVP" OR "get an MVP built"
-      OR "how much would it cost to build")
-      -filter:retweets -filter:replies lang:en -"we build" -agency -course
-    notes: cost-ask heavy; Cost Reality and Simplifier styles fit
-
+  # ── Active buying intent: hiring a dev / agency (highest-value signal) ──────
   - id: dev-recommend
     niche: app-web
     enabled: true
     query: >-
-      ("recommendations for a developer" OR "recommend a developer" OR "recommend an agency"
-      OR "know a good developer" OR "good dev shop")
-      -filter:retweets -filter:replies lang:en -"dm me" -"we can help"
-    notes: warm referral-seeking; softest entry, never pitch directly
+      ("recommendations for a" OR "can anyone recommend a" OR "recommend a good" OR "who is a good"
+      OR "know any good")
+      (developer OR "web developer" OR "app developer" OR "software developer" OR "web designer" OR "dev shop")
+      -filter:retweets -filter:replies lang:en -"open to work" -"i built"
+    notes: >-
+      people actively asking for a dev referral = warmest signal on X. Dropped bare "agency"
+      (caught travel/marketing agencies) — anchored to developer/software roles.
 
-  # ── E-commerce / Shopify ops ──────────────────────────────────────────────
-  - id: shopify-ops-pain
-    niche: ecommerce
+  - id: hire-build
+    niche: app-web
     enabled: true
     query: >-
-      (shopify OR "my store" OR "my ecommerce")
-      ("spending hours" OR "so time consuming" OR "manually updating"
-      OR "inventory is a nightmare" OR "syncing inventory")
-      -filter:retweets -filter:replies lang:en -dropshipping -course -guru
-    notes: store-owner ops pain; noisier niche, trust the LLM filter
+      ("need someone to build" OR "looking for someone to build" OR "who can build me"
+      OR "hire someone to build" OR "help me build" OR "need a dev to build")
+      (app OR website OR "web app" OR platform OR MVP OR dashboard OR tool)
+      -filter:retweets -filter:replies lang:en -intern -"i built"
+    notes: explicit build request; no -hiring (buyers say "hiring a dev")
 
+  - id: cost-quote
+    niche: app-web
+    enabled: true
+    query: >-
+      ("how much to build" OR "how much would it cost to build" OR "cost to develop"
+      OR "quote for a" OR "budget for a" OR "ballpark for")
+      (app OR website OR "web app" OR MVP OR automation OR platform)
+      -filter:retweets -filter:replies lang:en -course -"we build"
+    notes: budget/quote language = buyer with money in mind
+
+  - id: mvp-founder
+    niche: app-web
+    enabled: true
+    query: >-
+      ("build my MVP" OR "get my MVP built" OR "turn my idea into" OR "have an app idea and"
+      OR "want to build an app for my")
+      -filter:retweets -filter:replies lang:en -"we build" -agency -course -intern
+    notes: founders with an idea and intent to build
+
+  # ── Automation, anchored to a business/team ────────────────────────────────
+  - id: auto-tool-biz
+    niche: automation
+    enabled: true
+    query: >-
+      ("is there a tool" OR "is there an app" OR "what do you use to" OR "how do you automate"
+      OR "best way to automate")
+      (business OR clients OR invoices OR leads OR onboarding OR orders OR "my team")
+      -filter:retweets -filter:replies lang:en -crypto -"dm me" -"i built"
+    notes: solution-seeking anchored to a business object
+
+  - id: auto-team-pain
+    niche: automation
+    enabled: true
+    query: >-
+      ("my team" OR "our team" OR "my staff" OR "my assistant" OR "we manually")
+      ("wastes hours" OR "spends hours" OR "hours every week" OR "manually" OR "copy paste")
+      (data OR orders OR leads OR invoices OR crm OR spreadsheet)
+      -filter:retweets -filter:replies lang:en -hiring -"i built"
+    notes: business owner describing team time drain = strong pain + authority
+
+  - id: auto-firstperson
+    niche: automation
+    enabled: true
+    query: >-
+      ("i need to automate" OR "how do i automate" OR "trying to automate" OR "help me automate"
+      OR "want to stop doing" OR "i keep doing this manually")
+      -filter:retweets -filter:replies lang:en -course -webinar -"i built" -"we help" -"we automate"
+    notes: >-
+      first-person NEED phrasing. Replaced the old "automate + business" query which was a
+      magnet for content marketers posting declarative "automation tips" (not buyers).
+
+  # ── E-commerce / Shopify (store owners) ────────────────────────────────────
   - id: shopify-app-ask
     niche: ecommerce
     enabled: true
     query: >-
-      ("shopify app" OR "shopify store")
-      ("is there an app" OR "any app that" OR "app that can" OR "recommend an app for")
-      -filter:retweets -filter:replies lang:en -"link in bio" -giveaway -discount
-    notes: tool-rec asks from merchants; Insider Detail style shines here
+      (shopify OR "my store" OR "my shop")
+      ("is there an app" OR "recommend an app" OR "any app that" OR "app to" OR "plugin to")
+      -filter:retweets -filter:replies lang:en -dropshipping -course -giveaway
+    notes: merchants seeking a tool for their store
 
-  # ── Coaches / real estate ops ─────────────────────────────────────────────
+  - id: shopify-ops-pain
+    niche: ecommerce
+    enabled: true
+    query: >-
+      ("my store" OR "my shopify" OR "my shop" OR "our ecommerce")
+      (inventory OR orders OR fulfillment OR sync OR "customer service")
+      ("manually" OR "nightmare" OR "hours" OR "struggling" OR "help")
+      -filter:retweets -filter:replies lang:en -course -dropshipping
+    notes: store owner ops pain
+
+  # ── Service businesses: coaches, agencies, real estate ─────────────────────
   - id: coach-ops-pain
     niche: coaching
     enabled: true
     query: >-
-      (coach OR coaching OR "my clients")
-      ("onboarding clients" OR "chasing invoices" OR "scheduling is a nightmare"
-      OR "spend hours every week" OR "manually sending")
-      -filter:retweets -filter:replies lang:en -"free masterclass" -webinar -"dm me"
-    notes: coach ops pain; buyers with money, low technical vocabulary
+      (coach OR consultant OR agency OR "my clients" OR "my coaching")
+      ("onboarding" OR "chasing invoices" OR "scheduling" OR "manually sending" OR "follow up")
+      -filter:retweets -filter:replies lang:en -webinar -masterclass -"dm me"
+    notes: service-business ops; buyers with money, low tech vocab
 
   - id: realtor-ops-pain
     niche: real-estate
     enabled: true
     query: >-
-      (realtor OR "real estate agent" OR brokerage OR "my listings")
-      ("follow up with leads" OR "CRM is a mess" OR "hate data entry"
-      OR "manually entering" OR "drowning in paperwork")
-      -filter:retweets -filter:replies lang:en -"just listed" -"open house"
-    notes: realtor follow-up/CRM pain; Second-Order Pain style fits (leads going cold)
+      (realtor OR "real estate agent" OR broker OR "my listings")
+      ("follow up with leads" OR "crm" OR "data entry" OR "paperwork" OR "lead")
+      ("manually" OR "mess" OR "nightmare" OR "hours" OR "struggling")
+      -filter:retweets -filter:replies lang:en -"just listed"
+    notes: realtor follow-up / CRM pain
 
-  - id: crm-data-entry
+  # ── Tools / SaaS-ops pain (business-anchored) ──────────────────────────────
+  - id: spreadsheet-biz
     niche: automation
     enabled: true
     query: >-
-      ("manual data entry" OR "data entry is killing" OR "copy pasting between"
-      OR "spreadsheet hell" OR "updating spreadsheets all day" OR "my CRM is a mess")
-      -filter:retweets -filter:replies -filter:links lang:en -hiring -remote -"job opening"
-    notes: cross-niche CRM/data-entry drudgery; -remote kills job-listing noise
+      ("spreadsheet" OR "google sheets" OR "my crm" OR "our crm" OR airtable OR notion)
+      ("manually" OR "copy paste" OR "hate updating" OR "sick of updating" OR "hours")
+      (business OR clients OR team OR orders OR leads)
+      -filter:retweets -filter:replies lang:en -course -"i built"
+    notes: data-entry drudgery in a business context
+
+  - id: nocode-limits
+    niche: automation
+    enabled: true
+    query: >-
+      (zapier OR "make.com" OR "no code")
+      ("too expensive" OR "hitting the limit" OR "task limit" OR "keeps breaking"
+      OR "alternative to" OR "not working")
+      -filter:retweets -filter:replies lang:en -"i built" -course
+    notes: people outgrowing no-code = ready for a custom build
+
+  # ── Website need, anchored to a business (avoids movie/TV seekers) ──────────
+  - id: website-biz
+    niche: app-web
+    enabled: true
+    query: >-
+      ("need a website for my" OR "website for my business" OR "our website"
+      OR "new website for my" OR "redesign our website" OR "website for our")
+      (business OR company OR store OR brand OR startup OR practice OR restaurant)
+      -filter:retweets -filter:replies lang:en -"link in bio" -wix
+    notes: business website need only; the plain "need a website" caught movie-watchers

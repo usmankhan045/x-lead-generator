@@ -43,6 +43,12 @@ COMPETITOR_BIO = [
     "n8n expert", "automation expert", "automation agency", "ai automation agency", "ai agency",
     "i help businesses automate", "i help founders", "we help you automate", "i help you automate",
     "we help businesses grow", "i build ai agents", "we build ai", "no-code developer", "nocode developer",
+    # marketer / content-seller signals (seen flooding live results)
+    "we help businesses", "we help brands", "we help founders", "helping businesses", "helping brands",
+    "helping founders scale", "we automate", "done for you", "book a call", "free guide",
+    "dm for pricing", "dm to work", "growth agency", "marketing agency", "ai consultant",
+    "automation consultant", "grab your free", "get your free", "we build automations",
+    "smma", "lead gen agency", "we scale", "founder of an agency", "digital marketer",
 ]
 
 
