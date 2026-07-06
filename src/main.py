@@ -165,10 +165,21 @@ def run_pipeline(
 
     lead_webhook = _webhook(dry_run)
     digest_webhook = env("DISCORD_DIGEST_WEBHOOK_URL") or lead_webhook
-    review_webhook = env("DISCORD_REVIEW_WEBHOOK_URL") or lead_webhook  # falls back to main
+    review_webhook = env("DISCORD_REVIEW_WEBHOOK_URL") or lead_webhook   # falls back to main
+    hn_webhook = env("DISCORD_HN_WEBHOOK_URL") or lead_webhook           # dedicated HN channel
+
+    # Route by source so Hacker News leads land in their own channel, never mixed with X.
+    is_hn = lambda l: l.get("source") == "hn"  # noqa: E731
+    x_deliver = [l for l in to_deliver if not is_hn(l)]
+    x_review = [l for l in review if not is_hn(l)]
+    hn_deliver = [l for l in to_deliver if is_hn(l)]
+    hn_review = [l for l in review if is_hn(l)]
+
     if lead_webhook or discord_sink is not None:
-        discord_notify.deliver_leads(lead_webhook, to_deliver, discord_sink, tier="LEAD")
-        discord_notify.deliver_leads(review_webhook, review, discord_sink, tier="REVIEW")
+        discord_notify.deliver_leads(lead_webhook, x_deliver, discord_sink, tier="LEAD")
+        discord_notify.deliver_leads(review_webhook, x_review, discord_sink, tier="REVIEW")
+        discord_notify.deliver_leads(hn_webhook, hn_deliver, discord_sink, tier="LEAD")
+        discord_notify.deliver_leads(hn_webhook, hn_review, discord_sink, tier="REVIEW")
         discord_notify.deliver_digest(digest_webhook, run_id, stats, review, discord_sink)
     else:
         log.warning("no Discord webhook configured; skipping delivery")
